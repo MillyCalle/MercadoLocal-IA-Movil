@@ -139,22 +139,36 @@ export default function HomeTab() {
     );
   };
 
-  // 🔥 BÚSQUEDA - Limpia y va a Explore
+  // 🔥 BÚSQUEDA - Va a Explore
   const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      Alert.alert("Búsqueda vacía", "Por favor ingresa algo para buscar");
-      return;
+    // Simplemente navegar a explore
+    router.push("/(tabs)/explorar" as any);
+  };
+
+  // 🔥 VER TODOS - Va a Explore sin filtros
+  const handleVerTodos = async () => {
+    try {
+      // Limpiar cualquier filtro previo
+      await AsyncStorage.removeItem("searchCategory");
+    } catch (error) {
+      console.log("Error limpiando filtros:", error);
     }
-    setSearchQuery(""); // 🔥 LIMPIAR al navegar
-    router.push("/(tabs)/explore" as any);
+    router.push("/(tabs)/explorar" as any);
   };
 
-  const handleVerTodos = () => {
-    router.push("/(tabs)/explore" as any);
-  };
-
-  const handleBuscarCategoria = (categoria: string) => {
-    router.push("/(tabs)/explore" as any);
+  // 🔥 BUSCAR POR CATEGORÍA - Va a Explore y guarda la categoría seleccionada
+  const handleBuscarCategoria = async (categoria: string) => {
+    try {
+      // Guardar la categoría seleccionada para que Explore la use
+      await AsyncStorage.setItem("searchCategory", categoria);
+      console.log("📦 Guardando categoría:", categoria);
+      // Navegar a Explore
+      router.push("/(tabs)/explorar" as any);
+    } catch (error) {
+      console.log("Error guardando categoría:", error);
+      // Navegar de todas formas
+      router.push("/(tabs)/explorar" as any);
+    }
   };
 
   // 🔥 VER DETALLE DE PRODUCTO - Abre modal
@@ -266,7 +280,7 @@ export default function HomeTab() {
         <View style={styles.searchContainer}>
           <TouchableOpacity
             style={styles.searchBar}
-            onPress={handleSearch}
+            onPress={() => router.push("/(tabs)/explorar" as any)}
             activeOpacity={0.7}
           >
             <Text style={styles.searchIcon}>🔍</Text>
@@ -999,5 +1013,4 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
-  },
-});
+  }, });

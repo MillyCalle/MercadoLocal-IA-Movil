@@ -1,18 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
@@ -58,6 +58,46 @@ export default function ExploreTab() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
+
+  // 🔥 DETECTAR CATEGORÍA DESDE HOME - Se ejecuta cada vez que entras a esta pestaña
+  useFocusEffect(
+    useCallback(() => {
+      const loadCategoryFilter = async () => {
+        try {
+          const savedCategory = await AsyncStorage.getItem("searchCategory");
+          if (savedCategory) {
+            console.log("🎯 Categoría detectada desde home:", savedCategory);
+            
+            // Buscar la categoría por nombre
+            const categoriaEncontrada = categorias.find(
+              (cat) => cat.nombreCategoria.toLowerCase() === savedCategory.toLowerCase()
+            );
+
+            if (categoriaEncontrada) {
+              // Aplicar el filtro de categoría
+              setFiltroCategoria(String(categoriaEncontrada.idCategoria));
+              setFiltroSubcategoria("");
+              // También puedes poner el nombre en la búsqueda si lo prefieres
+              // setBusqueda(savedCategory);
+            } else {
+              // Si no encuentra la categoría exacta, buscar en el texto
+              setBusqueda(savedCategory);
+            }
+
+            // Limpiar el valor guardado para que no se aplique de nuevo
+            await AsyncStorage.removeItem("searchCategory");
+          }
+        } catch (error) {
+          console.log("Error loading category:", error);
+        }
+      };
+
+      // Solo cargar si ya tenemos las categorías cargadas
+      if (categorias.length > 0) {
+        loadCategoryFilter();
+      }
+    }, [categorias])
+  );
 
   useEffect(() => {
     cargarDatos();
@@ -177,10 +217,9 @@ export default function ExploreTab() {
   };
 
   // 🔥 VER DETALLE
-  const handleProductoPress = (producto: Producto) => {
-    // @ts-ignore
-    router.push(`/producto/${producto.idProducto}`);
-  };
+const handleProductoPress = (producto: Producto) => {
+  router.push(`/producto/${producto.idProducto}` as any);
+};
 
   // Renderizar producto
   const renderProducto = ({ item }: { item: Producto }) => (
