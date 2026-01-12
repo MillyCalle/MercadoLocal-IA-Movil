@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
+import { useCarrito } from "../context/CarritoContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -43,6 +44,7 @@ interface Producto {
 export default function ProductoDetalle() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { agregarCarrito: agregarAlCarritoContext } = useCarrito();
 
   const [producto, setProducto] = useState<Producto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -155,8 +157,13 @@ export default function ProductoDetalle() {
 
   const agregarAlCarrito = async () => {
     try {
+      console.log("🎬 INICIANDO agregarAlCarrito");
+      
       const userStr = await AsyncStorage.getItem("user");
       const token = await AsyncStorage.getItem("authToken");
+
+      console.log("🔑 Token existe:", !!token);
+      console.log("👤 Usuario existe:", !!userStr);
 
       if (!userStr || !token) {
         Alert.alert(
@@ -170,48 +177,20 @@ export default function ProductoDetalle() {
         return;
       }
 
-      const user = JSON.parse(userStr);
+      console.log("📦 ID Producto:", producto?.idProducto);
+      console.log("📊 Cantidad:", cantidad);
+
+      // ✅ Usar la función del context renombrada
+      await agregarAlCarritoContext(producto!.idProducto, cantidad);
       
-      // ✅ Usar idUsuario para el carrito
-      const body = {
-        idUsuario: user.idUsuario,
-        idProducto: producto?.idProducto,
-        cantidad: cantidad,
-      };
-
-      console.log("🛒 Agregando al carrito:", body);
-      console.log("👤 Usuario:", user);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/carrito/agregar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const responseText = await response.text();
-      console.log("📥 Respuesta carrito:", responseText);
-      console.log("📊 Status:", response.status);
-
-      if (!response.ok) {
-        let errorMessage = "Error al agregar al carrito";
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = responseText || errorMessage;
-        }
-        console.error("❌ Error del servidor:", errorMessage);
-        Alert.alert("Error", errorMessage);
-        return;
-      }
-
-      Alert.alert("¡Agregado!", `${producto?.nombreProducto} agregado al carrito`);
-    } catch (error) {
-      console.error("❌ Error al agregar:", error);
-      Alert.alert("Error", "No se pudo agregar al carrito. Verifica tu conexión.");
+      console.log("✅ agregarCarrito completado exitosamente");
+      Alert.alert("¡Agregado!", `${producto?.nombreProducto} agregado al carrito 🛒`);
+      
+    } catch (error: any) {
+      console.error("❌ Error en agregarAlCarrito:", error);
+      console.error("❌ Error message:", error.message);
+      console.error("❌ Error stack:", error.stack);
+      Alert.alert("Error al agregar", error.message || "No se pudo agregar al carrito");
     }
   };
 
@@ -234,7 +213,6 @@ export default function ProductoDetalle() {
 
       const user = JSON.parse(userStr);
       
-      // ✅ Usar idConsumidor si existe, sino idUsuario
       const idConsumidor = user.idConsumidor || user.idUsuario;
 
       const body = {
@@ -295,21 +273,18 @@ export default function ProductoDetalle() {
         return;
       }
 
-      // Validar que haya un comentario
       if (!nuevoComentario.trim()) {
         Alert.alert("Comentario requerido", "Por favor escribe un comentario para tu reseña");
         return;
       }
 
       const user = JSON.parse(userStr);
-
-      // ✅ IMPORTANTE: Usar idConsumidor si existe, sino idUsuario
       const idConsumidor = user.idConsumidor || user.idUsuario;
 
       const body = {
         idProducto: producto?.idProducto,
         idConsumidor: idConsumidor,
-        calificacion: Number(nuevaCalificacion), // ✅ Convertir a número
+        calificacion: Number(nuevaCalificacion),
         comentario: nuevoComentario.trim(),
       };
 
@@ -367,14 +342,12 @@ export default function ProductoDetalle() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header con botón atrás */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Imagen principal */}
         <View style={styles.imageSection}>
           <Image
             source={{ uri: producto.imagenProducto }}
@@ -382,7 +355,6 @@ export default function ProductoDetalle() {
             resizeMode="cover"
           />
           
-          {/* Badge de stock */}
           {producto.stockProducto > 0 && producto.stockProducto <= 10 && (
             <View style={styles.stockBadge}>
               <Text style={styles.stockBadgeText}>
@@ -392,9 +364,7 @@ export default function ProductoDetalle() {
           )}
         </View>
 
-        {/* Info del producto */}
         <View style={styles.contentSection}>
-          {/* Categorías */}
           <View style={styles.categoryRow}>
             {producto.nombreCategoria && (
               <View style={styles.categoryBadge}>
@@ -408,10 +378,8 @@ export default function ProductoDetalle() {
             )}
           </View>
 
-          {/* Nombre */}
           <Text style={styles.productName}>{producto.nombreProducto}</Text>
 
-          {/* Valoración */}
           <TouchableOpacity
             style={styles.ratingRow}
             onPress={() => setShowReseñas(true)}
@@ -425,7 +393,6 @@ export default function ProductoDetalle() {
             </Text>
           </TouchableOpacity>
 
-          {/* Precio */}
           <View style={styles.priceCard}>
             <Text style={styles.priceLabel}>PRECIO</Text>
             <Text style={styles.priceValue}>
@@ -436,7 +403,6 @@ export default function ProductoDetalle() {
             </Text>
           </View>
 
-          {/* Cantidad */}
           <View style={styles.quantitySection}>
             <Text style={styles.sectionLabel}>Cantidad</Text>
             <View style={styles.quantityControls}>
@@ -458,7 +424,6 @@ export default function ProductoDetalle() {
             </View>
           </View>
 
-          {/* Botones de acción */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={[styles.actionButton, styles.cartButton]}
@@ -474,7 +439,6 @@ export default function ProductoDetalle() {
             </TouchableOpacity>
           </View>
 
-          {/* Botones secundarios - CON FAVORITO */}
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={[styles.secondaryButton, esFavorito && styles.favoritoActivo]}
@@ -498,7 +462,6 @@ export default function ProductoDetalle() {
             </TouchableOpacity>
           </View>
 
-          {/* Vendedor */}
           <View style={styles.vendorCard}>
             <View style={styles.vendorAvatar}>
               <Text style={styles.vendorAvatarText}>🌾</Text>
@@ -518,7 +481,6 @@ export default function ProductoDetalle() {
             </TouchableOpacity>
           </View>
 
-          {/* Descripción */}
           <View style={styles.descriptionCard}>
             <Text style={styles.sectionTitle}>📋 Descripción</Text>
             <Text style={styles.descriptionText}>
@@ -526,7 +488,6 @@ export default function ProductoDetalle() {
             </Text>
           </View>
 
-          {/* Botón para ver todas las reseñas */}
           <TouchableOpacity
             style={styles.verReseñasButton}
             onPress={() => setShowReseñas(true)}
@@ -536,7 +497,6 @@ export default function ProductoDetalle() {
             </Text>
           </TouchableOpacity>
 
-          {/* Botón para escribir reseña */}
           <TouchableOpacity
             style={styles.escribirReseñaButton}
             onPress={() => setShowNuevaReseña(true)}
@@ -548,7 +508,6 @@ export default function ProductoDetalle() {
         </View>
       </ScrollView>
 
-      {/* Modal: Política de Envío */}
       <Modal visible={showEnvio} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -566,7 +525,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* Modal: Política de Reembolso */}
       <Modal visible={showReembolso} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -584,7 +542,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* Modal: Ver Reseñas - MEJORADO */}
       <Modal visible={showReseñas} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: height * 0.7 }]}>
@@ -622,7 +579,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* Modal: Nueva Reseña */}
       <Modal visible={showNuevaReseña} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -670,7 +626,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* Modal: Menú del Vendedor - SOLO VER PERFIL */}
       <Modal visible={menuVendedor} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -683,7 +638,6 @@ export default function ProductoDetalle() {
               onPress={() => {
                 setMenuVendedor(false);
                 Alert.alert("Perfil del Vendedor", "Función próximamente disponible");
-                // router.push(`/vendedor/${producto.idVendedor}` as any);
               }}
             >
               <Text style={styles.menuItemText}>👤 Ver Perfil del Vendedor</Text>
