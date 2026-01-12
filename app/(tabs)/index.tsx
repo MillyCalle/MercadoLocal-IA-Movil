@@ -44,7 +44,7 @@ export default function HomeTab() {
   useFocusEffect(
     useCallback(() => {
       setSearchQuery(""); // Limpia el campo de búsqueda
-      return () => {};
+      return () => { };
     }, [])
   );
 
@@ -198,7 +198,7 @@ export default function HomeTab() {
                 style={styles.productImage}
                 resizeMode="cover"
               />
-              
+
               {/* Badge de stock */}
               {producto.stockProducto > 0 && producto.stockProducto <= 5 && (
                 <View style={styles.stockBadgeLowStock}>
@@ -213,7 +213,7 @@ export default function HomeTab() {
               <Text style={styles.productName} numberOfLines={2}>
                 {producto.nombreProducto}
               </Text>
-              
+
               <View style={styles.priceRow}>
                 <Text style={styles.productPrice}>${producto.precioProducto}</Text>
                 {producto.unidadMedida && (
@@ -232,7 +232,7 @@ export default function HomeTab() {
             </View>
           </TouchableOpacity>
         ))}
-        
+
         {/* Espacio vacío si es impar */}
         {pair.length === 1 && <View style={styles.productCard} />}
       </View>
@@ -428,7 +428,7 @@ export default function HomeTab() {
                       style={styles.modalImage}
                       resizeMode="contain"
                     />
-                    
+
                     {selectedProduct.stockProducto > 0 && (
                       <View style={[
                         styles.modalStockBadge,
@@ -510,8 +510,7 @@ export default function HomeTab() {
                       style={styles.modalButton}
                       onPress={() => {
                         setSelectedProduct(null);
-                        // @ts-ignore
-                        router.push(`/producto/${selectedProduct.idProducto}`);
+                        router.push(`/producto/${selectedProduct.idProducto}` as any);
                       }}
                     >
                       <Text style={styles.modalButtonIcon}>🛒</Text>
@@ -1013,4 +1012,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
-  }, });
+  },
+});

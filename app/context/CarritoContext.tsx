@@ -40,6 +40,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const token = await AsyncStorage.getItem("authToken");
 
       if (!userStr || !token) {
+        console.log("⚠️ Usuario no autenticado");
         setItems([]);
         return;
       }
@@ -47,20 +48,44 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const user = JSON.parse(userStr);
       const idConsumidor = user.idConsumidor;
 
+      console.log("🔍 Cargando carrito para consumidor:", idConsumidor);
+
       const response = await fetch(
         `${API_CONFIG.BASE_URL}/carrito/${idConsumidor}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (!response.ok) {
+        console.log("⚠️ Respuesta no OK:", response.status);
         setItems([]);
         return;
       }
 
       const data = await response.json();
-      
-      // El backend devuelve CarritoResponse con estructura: { idCarrito, items, mensaje }
-      setItems(data.items || []);
+      console.log("📦 Datos recibidos del backend:", JSON.stringify(data, null, 2));
+
+      // 🔥 MAPEAR la respuesta del backend a la estructura esperada por React Native
+      const itemsMapeados = (data.items || []).map((item: any) => {
+        console.log("🔍 Mapeando item:", item);
+        
+        return {
+          // El backend usa "idItem" pero React Native espera "idCarrito"
+          idCarrito: item.idItem,
+          
+          // El backend devuelve un objeto "producto" anidado
+          idProducto: item.producto?.idProducto || 0,
+          nombreProducto: item.producto?.nombre || "Producto sin nombre",
+          precioProducto: item.producto?.precio || 0,
+          imagenProducto: item.producto?.imagen || "",
+          stockProducto: item.producto?.stock || 0,
+          
+          // La cantidad sí viene directamente
+          cantidad: item.cantidad || 0,
+        };
+      });
+
+      console.log("✅ Items mapeados:", JSON.stringify(itemsMapeados, null, 2));
+      setItems(itemsMapeados);
       
     } catch (error) {
       console.error("❌ [cargarCarrito] Error:", error);
@@ -85,10 +110,6 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const user = JSON.parse(userStr);
       const idConsumidor = user.idConsumidor || user.idUsuario;
 
-      // 🚀 El BACKEND ahora maneja todo:
-      // - Verifica si el producto ya existe
-      // - Si existe: actualiza la cantidad
-      // - Si no existe: crea nuevo item
       const response = await fetch(`${API_CONFIG.BASE_URL}/carrito/agregar`, {
         method: "POST",
         headers: {
@@ -207,4 +228,4 @@ export const useCarrito = () => {
     throw new Error("useCarrito debe usarse dentro de CarritoProvider");
   }
   return context;
-};  
+};
