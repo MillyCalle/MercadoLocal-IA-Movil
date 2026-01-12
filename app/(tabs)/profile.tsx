@@ -2,12 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
@@ -180,13 +180,13 @@ export default function Profile() {
           {perfil.rol === "CONSUMIDOR" && (
             <>
               <ActionButton
-                onPress={() => router.push("/editar-perfil" as any)}
+                onPress={() => router.push("/consumidor/EditarPerfil" as any)}
                 icon="✏️"
               >
                 Editar perfil
               </ActionButton>
               <ActionButton
-                onPress={() => router.push("/favoritos" as any)}
+                onPress={() => router.push("/(tabs)/Favoritos" as any)}
                 variant="secondary"
                 icon="❤️"
               >

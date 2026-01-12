@@ -24,6 +24,7 @@ export default function TabLayout() {
           paddingTop: 8,
         },
       }}>
+
       <Tabs.Screen
         name="index"
         options={{
@@ -31,6 +32,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
+
       <Tabs.Screen
         name="explorar"
         options={{
@@ -38,6 +40,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
         }}
       />
+
+      <Tabs.Screen
+        name="Favoritos"  
+        options={{
+          title: 'Favoritos',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="heart.fill" color={color} />,
+        }}
+      />
+
       <Tabs.Screen
         name="carrito"
         options={{
@@ -45,6 +56,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cart.fill" color={color} />,
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
