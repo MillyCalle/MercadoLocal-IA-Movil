@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { API_CONFIG } from "../../config";
 
+
 interface Favorito {
   idFavorito: number;
   idProducto: number;

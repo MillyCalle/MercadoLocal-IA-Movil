@@ -7,10 +7,40 @@ export default function RootLayout() {
     <CarritoProvider>
       <FavoritosProvider>
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Tabs principales */}
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="producto/[id]" />
+          
+          {/* Autenticación */}
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
+          
+          {/* Producto detalle */}
+          <Stack.Screen name="producto/[id]" />
+          
+          {/* 🛒 Flujo de compra/pedidos */}
+          <Stack.Screen 
+            name="checkout" 
+            options={{ 
+              presentation: 'card',
+              animation: 'slide_from_right'
+            }} 
+          />
+          
+          <Stack.Screen 
+            name="pedidodetalle" 
+            options={{ 
+              presentation: 'card',
+              animation: 'slide_from_right'
+            }} 
+          />
+          
+          <Stack.Screen 
+            name="mispedidos" 
+            options={{ 
+              presentation: 'card',
+              animation: 'slide_from_right'
+            }} 
+          />
         </Stack>
       </FavoritosProvider>
     </CarritoProvider>

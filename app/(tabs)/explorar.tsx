@@ -32,6 +32,7 @@ interface Producto {
   idSubcategoria?: number;
   promedioValoracion?: number;
   totalValoraciones?: number;
+  idVendedor?: number;
 }
 
 interface Categoria {
@@ -43,6 +44,11 @@ interface Subcategoria {
   idSubcategoria: number;
   nombreSubcategoria: string;
   idCategoria: number;
+}
+
+interface ItemCarrito {
+  producto: Producto;
+  cantidad: number;
 }
 
 export default function ExploreTab() {
@@ -58,6 +64,10 @@ export default function ExploreTab() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
+
+  // Estados del carrito (si los necesitas en esta pantalla)
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [totalCarrito, setTotalCarrito] = useState(0);
 
   // 🔥 DETECTAR CATEGORÍA DESDE HOME - Se ejecuta cada vez que entras a esta pestaña
   useFocusEffect(
@@ -216,10 +226,93 @@ export default function ExploreTab() {
     }
   };
 
+  // 🔥 FINALIZAR COMPRA (nueva función)
+  const finalizarCompra = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      const token = await AsyncStorage.getItem("authToken");
+
+      if (!userStr || !token) {
+        Alert.alert(
+          "Inicia sesión",
+          "Debes iniciar sesión para finalizar la compra",
+          [
+            { text: "Cancelar" },
+            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+          ]
+        );
+        return;
+      }
+
+      // Validar que el carrito no esté vacío
+      if (carrito.length === 0) {
+        Alert.alert("Carrito vacío", "Agrega productos al carrito antes de finalizar la compra");
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const idConsumidor = user.idConsumidor || user.idUsuario;
+
+      // Preparar los detalles del pedido desde el carrito
+      const detalles = carrito.map((item) => ({
+        idProducto: item.producto.idProducto,
+        cantidad: item.cantidad,
+      }));
+
+      // Obtener el ID del vendedor del primer producto (ajustar según tu lógica de negocio)
+      const idVendedor = carrito[0]?.producto?.idVendedor;
+
+      const body = {
+        idConsumidor: idConsumidor,
+        idVendedor: idVendedor,
+        metodoPago: "TARJETA", // Puedes ajustar esto según tu flujo
+        detalles: detalles,
+      };
+
+      console.log("💳 Finalizando compra desde carrito:", body);
+
+      const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/crear-desde-carrito`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const responseText = await response.text();
+      console.log("📥 Respuesta crear pedido:", responseText);
+
+      if (!response.ok) {
+        let errorMessage = "Error al crear el pedido";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
+        console.error("❌ Error del servidor:", errorMessage);
+        Alert.alert("Error", errorMessage);
+        return;
+      }
+
+      // ✅ Parsear la respuesta para obtener el ID del pedido
+      const pedidoCreado = JSON.parse(responseText);
+      console.log("✅ Pedido creado desde carrito:", pedidoCreado);
+
+      // ✅ Redirigir a la página del pedido
+      router.push(`/consumidor/Pedido/${pedidoCreado.idPedido}` as any);
+
+    } catch (error) {
+      console.error("❌ Error al finalizar compra:", error);
+      Alert.alert("Error", "No se pudo crear el pedido. Verifica tu conexión.");
+    }
+  };
+
   // 🔥 VER DETALLE
-const handleProductoPress = (producto: Producto) => {
-  router.push(`/producto/${producto.idProducto}` as any);
-};
+  const handleProductoPress = (producto: Producto) => {
+    router.push(`/producto/${producto.idProducto}` as any);
+  };
 
   // Renderizar producto
   const renderProducto = ({ item }: { item: Producto }) => (
@@ -480,6 +573,20 @@ const handleProductoPress = (producto: Producto) => {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Botón flotante de finalizar compra (ejemplo) */}
+      {carrito.length > 0 && (
+        <View style={styles.checkoutContainer}>
+          <TouchableOpacity
+            style={styles.checkoutButton}
+            onPress={finalizarCompra}
+          >
+            <Text style={styles.checkoutButtonText}>
+              💳 Finalizar Compra ${totalCarrito.toFixed(2)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -732,5 +839,32 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     textAlign: "center",
     paddingHorizontal: 40,
+  },
+  // Estilos para el botón de finalizar compra
+  checkoutContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  checkoutButton: {
+    backgroundColor: "#6b8e4e",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  checkoutButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });

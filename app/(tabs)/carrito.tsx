@@ -16,10 +16,10 @@ export default function Carrito() {
     const router = useRouter();
     const { items, actualizarCantidad, eliminarItem, loading } = useCarrito();
 
-
     const [subtotal, setSubtotal] = useState(0);
     const [iva, setIVA] = useState(0);
     const [total, setTotal] = useState(0);
+    const [processingCheckout, setProcessingCheckout] = useState(false);
 
     // Calcular totales
     useEffect(() => {
@@ -32,7 +32,6 @@ export default function Carrito() {
         setIVA(ivaCalc);
         setTotal(sub + ivaCalc);
     }, [items]);
-
 
     const handleVaciarCarrito = () => {
         Alert.alert(
@@ -48,15 +47,14 @@ export default function Carrito() {
                             for (const item of items) {
                                 await eliminarItem(item.idCarrito);
                             }
-                        }
-                        catch (error) {
+                        } catch (error) {
                             Alert.alert("Error", "No se pudo vaciar el carrito");
                         }
                     },
                 },
             ]
         );
-    }
+    };
 
     const handleEliminar = (idCarrito: number) => {
         Alert.alert(
@@ -70,25 +68,24 @@ export default function Carrito() {
                     onPress: async () => {
                         try {
                             await eliminarItem(idCarrito);
-                        }
-                        catch (error) {
+                        } catch (error) {
                             Alert.alert("Error", "No se pudo eliminar el producto");
                         }
                     },
                 },
             ]
         );
-    }
+    };
 
     const realizarCheckout = () => {
-        if (!items || items.length === 0) {
-            Alert.alert("Carrito vacío", "Agrega productos antes de continuar");
-            return;
-        }
-        // Aquí puedes navegar a tu pantalla de checkout
-        Alert.alert("Próximamente", "Función de checkout en desarrollo");
-        // router.push("/checkout" as any);
-    };
+    if (!items || items.length === 0) {
+        Alert.alert("Carrito vacío", "Agrega productos antes de continuar");
+        return;
+    }
+
+    // Redirigir al CheckoutUnificado
+    router.push("/consumidor/CheckoutUnificado" as any);
+};
 
     if (loading) {
         return (
@@ -111,7 +108,6 @@ export default function Carrito() {
             </View>
 
             {items.length === 0 ? (
-
                 // Carrito vacío
                 <View style={styles.emptyContainer}>
                     <Text style={styles.emptyEmoji}>🛒</Text>
@@ -148,7 +144,6 @@ export default function Carrito() {
                         </View>
 
                         {items.map((item) => (
-
                             <View key={item.idCarrito} style={styles.productoCard}>
                                 <Image
                                     source={{ uri: item.imagenProducto }}
@@ -193,12 +188,11 @@ export default function Carrito() {
 
                                 <TouchableOpacity
                                     style={styles.eliminarButton}
-                                    onPress={() => eliminarItem(item.idCarrito)}
+                                    onPress={() => handleEliminar(item.idCarrito)}
                                 >
                                     <Text style={styles.eliminarButtonText}>✕</Text>
                                 </TouchableOpacity>
                             </View>
-
                         ))}
                     </View>
 
@@ -224,10 +218,18 @@ export default function Carrito() {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.checkoutButton}
+                            style={[
+                                styles.checkoutButton,
+                                processingCheckout && styles.checkoutButtonDisabled
+                            ]}
                             onPress={realizarCheckout}
+                            disabled={processingCheckout}
                         >
-                            <Text style={styles.checkoutButtonText}>🛒 Finalizar Compra</Text>
+                            {processingCheckout ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.checkoutButtonText}>🛒 Finalizar Compra</Text>
+                            )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -505,6 +507,9 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: "center",
         marginBottom: 12,
+    },
+    checkoutButtonDisabled: {
+        backgroundColor: "#A5C9A0",
     },
     checkoutButtonText: {
         color: "white",

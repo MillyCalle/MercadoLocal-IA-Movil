@@ -193,7 +193,7 @@ export default function Profile() {
                 Ver favoritos
               </ActionButton>
               <ActionButton
-                onPress={() => router.push("/mis-pedidos" as any)}
+                onPress={() => router.push("/consumidor/MisPedidos" as any)}
                 variant="secondary"
                 icon="📦"
               >

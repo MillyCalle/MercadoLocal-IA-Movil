@@ -15,7 +15,7 @@ const NETWORK_CONFIGS = {
   // Red del instituto
   INSTITUTO: {
     name: "Red Instituto",
-    ip: "192.168.54.30", // 👈 CAMBIA cuando estés en el instituto
+    ip: "192.168.54.59", // 👈 CAMBIA cuando estés en el instituto
     port: "8080"
   },
   
@@ -28,7 +28,7 @@ const NETWORK_CONFIGS = {
 };
 
 // 🔥 SELECCIONA LA RED ACTUAL AQUÍ (solo cambia esta línea)
-const CURRENT_NETWORK: keyof typeof NETWORK_CONFIGS = "CASA"; // 👈 Cambia entre "CASA", "INSTITUTO", "PRODUCCION"
+const CURRENT_NETWORK: keyof typeof NETWORK_CONFIGS = "INSTITUTO"; // 👈 "CASA", "INSTITUTO", "PRODUCCION"
 
 // Construye la URL base
 const getApiBaseUrl = (): string => {

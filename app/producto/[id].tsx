@@ -195,73 +195,76 @@ export default function ProductoDetalle() {
   };
 
   const comprarAhora = async () => {
-    try {
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
+  try {
+    const userStr = await AsyncStorage.getItem("user");
+    const token = await AsyncStorage.getItem("authToken");
 
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para comprar",
-          [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
-          ]
-        );
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-      
-      const idConsumidor = user.idConsumidor || user.idUsuario;
-
-      const body = {
-        idConsumidor: idConsumidor,
-        idVendedor: producto?.idVendedor,
-        metodoPago: "TARJETA",
-        detalles: [
-          {
-            idProducto: producto?.idProducto,
-            cantidad: cantidad,
-          },
-        ],
-      };
-
-      console.log("💳 Comprando ahora:", body);
-      console.log("👤 Usuario:", user);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const responseText = await response.text();
-      console.log("📥 Respuesta compra:", responseText);
-      console.log("📊 Status:", response.status);
-
-      if (!response.ok) {
-        let errorMessage = "Error al procesar la compra";
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = responseText || errorMessage;
-        }
-        console.error("❌ Error del servidor:", errorMessage);
-        Alert.alert("Error", errorMessage);
-        return;
-      }
-
-      Alert.alert("¡Éxito!", "Compra realizada correctamente 🎉");
-    } catch (error) {
-      console.error("❌ Error al comprar:", error);
-      Alert.alert("Error", "No se pudo procesar la compra. Verifica tu conexión.");
+    if (!userStr || !token) {
+      Alert.alert(
+        "Inicia sesión",
+        "Debes iniciar sesión para comprar",
+        [
+          { text: "Cancelar" },
+          { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+        ]
+      );
+      return;
     }
-  };
+
+    const user = JSON.parse(userStr);
+    const idConsumidor = user.idConsumidor || user.idUsuario;
+
+    const body = {
+      idConsumidor: idConsumidor,
+      idVendedor: producto?.idVendedor,
+      metodoPago: "TARJETA",
+      detalles: [
+        {
+          idProducto: producto?.idProducto,
+          cantidad: cantidad,
+        },
+      ],
+    };
+
+    console.log("💳 Comprando ahora:", body);
+
+    const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const responseText = await response.text();
+    console.log("📥 Respuesta compra:", responseText);
+
+    if (!response.ok) {
+      let errorMessage = "Error al procesar la compra";
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = responseText || errorMessage;
+      }
+      console.error("❌ Error del servidor:", errorMessage);
+      Alert.alert("Error", errorMessage);
+      return;
+    }
+
+    // ✅ Parsear la respuesta para obtener el ID del pedido
+    const pedidoCreado = JSON.parse(responseText);
+    console.log("✅ Pedido creado:", pedidoCreado);
+
+    // ✅ Redirigir a la página del pedido
+    router.push(`/consumidor/Pedido/${pedidoCreado.idPedido}` as any);
+
+  } catch (error) {
+    console.error("❌ Error al comprar:", error);
+    Alert.alert("Error", "No se pudo procesar la compra. Verifica tu conexión.");
+  }
+};
 
   const enviarReseña = async () => {
     try {
