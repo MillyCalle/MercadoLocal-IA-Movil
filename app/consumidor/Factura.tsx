@@ -6,18 +6,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    Share,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { API_CONFIG } from '../../config';
@@ -60,9 +60,13 @@ const Factura = () => {
   
   const facturaRef = React.useRef<View>(null);
 
+  // NOMBRE FIJO DE LA PLATAFORMA
+  const NOMBRE_PLATAFORMA = "MERCADO LOCAL - IA";
+
   // Generar número de factura
   const generarNumeroFactura = (idPedido: string) => {
-    return `FAC-${String(idPedido).padStart(6, "0")}`;
+    const num = parseInt(idPedido);
+    return `FAC-${String(num).padStart(6, "0")}`;
   };
 
   // Obtener token del AsyncStorage
@@ -158,16 +162,16 @@ const Factura = () => {
 
   // Obtener información del estado
   const getEstadoInfo = (estado: string) => {
-    const estados: Record<string, { color: string; bg: string; texto: string; emoji: string }> = {
-      PENDIENTE: { color: "#F4B419", bg: "#FFF8E1", texto: "Pendiente", emoji: "⏳" },
-      PROCESANDO: { color: "#4A90E2", bg: "#E3F2FD", texto: "Procesando", emoji: "🔄" },
-      PENDIENTE_VERIFICACION: { color: "#F57C00", bg: "#FFF3E0", texto: "Verificando", emoji: "🔍" },
-      COMPLETADO: { color: "#5A8F48", bg: "#E8F5E9", texto: "Completado", emoji: "✅" },
-      CANCELADO: { color: "#E74C3C", bg: "#FFEBEE", texto: "Cancelado", emoji: "❌" },
-      ENVIADO: { color: "#6366F1", bg: "#EEF2FF", texto: "Enviado", emoji: "🚚" },
-      ENTREGADO: { color: "#059669", bg: "#D1FAE5", texto: "Entregado", emoji: "📦" }
+    const estados: Record<string, { color: string; bg: string; texto: string; }> = {
+      PENDIENTE: { color: "#F4B419", bg: "#FFF8E1", texto: "Pendiente" },
+      PROCESANDO: { color: "#4A90E2", bg: "#E3F2FD", texto: "Procesando" },
+      PENDIENTE_VERIFICACION: { color: "#F57C00", bg: "#FFF3E0", texto: "Verificando" },
+      COMPLETADO: { color: "#5A8F48", bg: "#E8F5E9", texto: "Completado" },
+      CANCELADO: { color: "#E74C3C", bg: "#FFEBEE", texto: "Cancelado" },
+      ENVIADO: { color: "#6366F1", bg: "#EEF2FF", texto: "Enviado" },
+      ENTREGADO: { color: "#059669", bg: "#D1FAE5", texto: "Entregado" }
     };
-    return estados[estado] || { color: "#6B7F69", bg: "#F5F5F5", texto: estado, emoji: "📋" };
+    return estados[estado] || { color: "#6B7F69", bg: "#F5F5F5", texto: estado };
   };
 
   // Descargar/Compartir PDF
@@ -201,29 +205,25 @@ const Factura = () => {
               border: 2px solid #E8F5E9;
             }
             .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
+              text-align: center;
               margin-bottom: 30px;
-              padding-bottom: 20px;
-              border-bottom: 2px solid #ECF2E3;
             }
-            .logo {
+            .empresa-nombre {
               font-size: 24px;
               font-weight: bold;
               color: #5A8F48;
+              margin-bottom: 8px;
             }
-            .titulo {
-              font-size: 28px;
+            .factura-titulo {
+              font-size: 32px;
               font-weight: 900;
               color: #2D3E2B;
               margin: 0;
             }
             .numero-factura {
-              text-align: right;
+              text-align: center;
               padding: 15px;
-              border-radius: 8px;
-              border: 2px solid #E3EBD9;
+              margin-bottom: 20px;
             }
             .grid {
               display: grid;
@@ -276,17 +276,16 @@ const Factura = () => {
         <body>
           <div class="factura-container">
             <div class="header">
-              <div>
-                <div class="logo">🏪 Don Carlos Market</div>
-                <h1 class="titulo">FACTURA</h1>
+              <div class="empresa-nombre">${NOMBRE_PLATAFORMA}</div>
+              <h1 class="factura-titulo">FACTURA</h1>
+            </div>
+            
+            <div class="numero-factura">
+              <div style="font-size: 11px; color: #6B7F69;">Nº FACTURA</div>
+              <div style="font-size: 22px; font-weight: 900; color: #5A8F48;">
+                ${numeroFactura}
               </div>
-              <div class="numero-factura">
-                <div style="font-size: 11px; color: #6B7F69;">Nº FACTURA</div>
-                <div style="font-size: 22px; font-weight: 900; color: #5A8F48;">
-                  ${numeroFactura}
-                </div>
-                <div style="font-size: 10px; color: #9AAA98;">Pedido #${pedido.idPedido}</div>
-              </div>
+              <div style="font-size: 10px; color: #9AAA98;">Pedido #${pedido.idPedido}</div>
             </div>
             
             <div class="grid">
@@ -300,7 +299,6 @@ const Factura = () => {
               <div>
                 <h3>Estado</h3>
                 <div>
-                  <div style="font-size: 20px;">${getEstadoInfo(pedido.estadoPedido).emoji}</div>
                   <div style="font-weight: bold; color: ${getEstadoInfo(pedido.estadoPedido).color}">
                     ${getEstadoInfo(pedido.estadoPedido).texto}
                   </div>
@@ -345,7 +343,7 @@ const Factura = () => {
             </div>
             
             <div class="footer">
-              <p>Gracias por tu compra en Don Carlos Market</p>
+              <p>Gracias por tu compra en ${NOMBRE_PLATAFORMA}</p>
               <p>Este documento es una factura válida para efectos tributarios</p>
             </div>
           </div>
@@ -389,7 +387,7 @@ const Factura = () => {
       
       await Share.share({
         title: `Factura ${generarNumeroFactura(pedido.idPedido)}`,
-        message: `Factura de Don Carlos Market\nPedido #${pedido.idPedido}\nTotal: $${pedido.total.toFixed(2)}`,
+        message: `Factura de ${NOMBRE_PLATAFORMA}\nPedido #${pedido.idPedido}\nTotal: $${pedido.total.toFixed(2)}`,
         url: Platform.OS === 'ios' ? uri : `file://${uri}`,
       });
     } catch (error: any) {
@@ -476,189 +474,150 @@ const Factura = () => {
         contentContainerStyle={styles.scrollViewContent}
       >
         <View ref={facturaRef} style={styles.facturaContainer}>
-          {/* Header de la factura */}
-          <View style={styles.facturaHeader}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logoIcon}>
-                <Text style={styles.logoEmoji}>🏪</Text>
-              </View>
-              <View>
-                <Text style={styles.empresaNombre}>Don Carlos Market</Text>
-                <Text style={styles.facturaTitulo}>FACTURA</Text>
-              </View>
-            </View>
+          
+          {/* 1. TÍTULO DE LA FACTURA */}
+          <View style={styles.tituloSeccion}>
+            <Text style={styles.nombrePlataforma}>{NOMBRE_PLATAFORMA}</Text>
+            <Text style={styles.facturaTitulo}>FACTURA</Text>
+          </View>
+
+          {/* 2. NÚMERO DE FACTURA Y PEDIDO */}
+          <View style={styles.numeroFacturaContainer}>
+            <Text style={styles.numeroFacturaLabel}>N° FACTURA</Text>
+            <Text style={styles.numeroFactura}>{numeroFactura}</Text>
+            <Text style={styles.idPedido}>Pedido #{pedido.idPedido}</Text>
+          </View>
+
+          <View style={styles.separador} />
+
+          {/* 3. DETALLES DEL PEDIDO Y ESTADO EN DOS COLUMNAS */}
+          <View style={styles.detallesGrid}>
             
-            <View style={styles.numeroFacturaContainer}>
-              <Text style={styles.numeroFacturaLabel}>Nº FACTURA</Text>
-              <Text style={styles.numeroFactura}>{numeroFactura}</Text>
-              <Text style={styles.idPedido}>Pedido #{pedido.idPedido}</Text>
-            </View>
-          </View>
-
-          {/* Información en dos columnas */}
-          <View style={styles.infoGrid}>
-            {/* Detalles del pedido */}
-            <View style={styles.infoColumn}>
-              <Text style={styles.sectionTitle}>Detalles del Pedido</Text>
-              <View style={styles.detallesContainer}>
-                <View style={styles.detalleItem}>
-                  <View style={styles.detalleIcon}>
-                    <Ionicons name="calendar-outline" size={16} color="#6B7F69" />
-                  </View>
-                  <View style={styles.detalleContent}>
-                    <Text style={styles.detalleLabel}>Fecha de emisión</Text>
-                    <Text style={styles.detalleValue}>{formatearFecha(pedido.fechaPedido)}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.detalleItem}>
-                  <View style={styles.detalleIcon}>
-                    <Ionicons 
-                      name={pedido.metodoPago === "EFECTIVO" ? "cash-outline" : "card-outline"} 
-                      size={16} 
-                      color="#6B7F69" 
-                    />
-                  </View>
-                  <View style={styles.detalleContent}>
-                    <Text style={styles.detalleLabel}>Método de pago</Text>
-                    <Text style={styles.detalleValue}>
-                      {pedido.metodoPago === "EFECTIVO" ? "Efectivo" :
-                       pedido.metodoPago === "TRANSFERENCIA" ? "Transferencia" :
-                       pedido.metodoPago === "TARJETA" ? "Tarjeta" : pedido.metodoPago}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Estado */}
-            <View style={styles.infoColumn}>
-              <Text style={styles.sectionTitle}>Estado</Text>
-              <View style={[styles.estadoContainer, { backgroundColor: estadoInfo.bg, borderColor: estadoInfo.color }]}>
-                <Text style={styles.estadoEmoji}>{estadoInfo.emoji}</Text>
-                <Text style={styles.estadoLabel}>Estado actual</Text>
-                <Text style={[styles.estadoTexto, { color: estadoInfo.color }]}>{estadoInfo.texto}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Productos del pedido */}
-          <View style={styles.productosSection}>
-            <Text style={styles.sectionTitle}>Productos del Pedido</Text>
-            <View style={styles.productosContainer}>
-              {/* Encabezados de la tabla */}
-              <View style={styles.productosHeader}>
-                <Text style={[styles.productosHeaderText, { flex: 3 }]}>Producto</Text>
-                <Text style={[styles.productosHeaderText, { width: 50, textAlign: 'center' }]}>Cant.</Text>
-                <Text style={[styles.productosHeaderText, { width: 70, textAlign: 'right' }]}>P.Unit.</Text>
-                <Text style={[styles.productosHeaderText, { width: 80, textAlign: 'right' }]}>Subtotal</Text>
+            {/* Columna izquierda: Detalles */}
+            <View style={styles.detallesColumna}>
+              <Text style={styles.seccionTitulo}>DETALLES DEL PEDIDO</Text>
+              
+              <View style={styles.detalleFila}>
+                <Text style={styles.detalleLabel}>FECHA DE EMISIÓN</Text>
+                <Text style={styles.detalleValor}>{formatearFecha(pedido.fechaPedido)}</Text>
               </View>
               
-              {/* Lista de productos */}
-              {detalles.map((d, i) => (
-                <View key={i} style={styles.productoRow}>
-                  <Text style={[styles.productoText, { flex: 3 }]} numberOfLines={2}>
-                    {d.producto?.nombreProducto || "Producto"}
-                  </Text>
-                  <Text style={[styles.productoText, { width: 50, textAlign: 'center' }]}>
-                    {d.cantidad}
-                  </Text>
-                  <Text style={[styles.productoText, { width: 70, textAlign: 'right' }]}>
-                    ${(d.subtotal / d.cantidad).toFixed(2)}
-                  </Text>
-                  <Text style={[styles.productoText, styles.productoSubtotal, { width: 80, textAlign: 'right' }]}>
-                    ${d.subtotal.toFixed(2)}
-                  </Text>
-                </View>
-              ))}
+              <View style={styles.detalleFila}>
+                <Text style={styles.detalleLabel}>MÉTODO DE PAGO</Text>
+                <Text style={styles.detalleValor}>
+                  {pedido.metodoPago === "EFECTIVO" ? "Efectivo" :
+                   pedido.metodoPago === "TRANSFERENCIA" ? "Transferencia" :
+                   pedido.metodoPago === "TARJETA" ? "Tarjeta" : pedido.metodoPago}
+                </Text>
+              </View>
+            </View>
+
+            {/* Columna derecha: Estado */}
+            <View style={styles.estadoColumna}>
+              <Text style={styles.seccionTitulo}>ESTADO</Text>
+              <Text style={styles.estadoLabel}>ESTADO ACTUAL</Text>
+              <View style={[styles.estadoBadge, { backgroundColor: estadoInfo.bg }]}>
+                <Text style={[styles.estadoTexto, { color: estadoInfo.color }]}>
+                  {estadoInfo.texto}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Totales */}
+          <View style={styles.separador} />
+
+          {/* 4. PRODUCTOS DEL PEDIDO */}
+          <Text style={styles.seccionTitulo}>PRODUCTOS DEL PEDIDO</Text>
+          
+          <View style={styles.tablaProductos}>
+            {/* Encabezado de la tabla */}
+            <View style={styles.tablaHeader}>
+              <Text style={[styles.tablaHeaderText, { flex: 3 }]}>PRODUCTO</Text>
+              <Text style={[styles.tablaHeaderText, { flex: 1, textAlign: 'center' }]}>CANT.</Text>
+              <Text style={[styles.tablaHeaderText, { flex: 1.5, textAlign: 'right' }]}>P.UNIT.</Text>
+              <Text style={[styles.tablaHeaderText, { flex: 1.5, textAlign: 'right' }]}>SUBTOTAL</Text>
+            </View>
+            
+            {/* Filas de productos */}
+            {detalles.map((d, i) => (
+              <View key={i} style={styles.tablaFila}>
+                <Text style={[styles.tablaTexto, { flex: 3 }]} numberOfLines={1}>
+                  {d.producto?.nombreProducto || "Producto"}
+                </Text>
+                <Text style={[styles.tablaTexto, { flex: 1, textAlign: 'center' }]}>
+                  {d.cantidad}
+                </Text>
+                <Text style={[styles.tablaTexto, { flex: 1.5, textAlign: 'right' }]}>
+                  ${(d.subtotal / d.cantidad).toFixed(2)}
+                </Text>
+                <Text style={[styles.tablaSubtotal, { flex: 1.5, textAlign: 'right' }]}>
+                  ${d.subtotal.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.separador} />
+
+          {/* 5. TOTALES */}
           <View style={styles.totalesContainer}>
-            <View style={styles.totalesContent}>
-              <View style={styles.totalItem}>
-                <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>${pedido.subtotal.toFixed(2)}</Text>
-              </View>
-              
-              <View style={styles.totalItem}>
-                <Text style={styles.totalLabel}>IVA (12%)</Text>
-                <Text style={styles.totalValue}>${pedido.iva.toFixed(2)}</Text>
-              </View>
-              
-              <View style={[styles.totalItem, styles.totalFinal]}>
-                <Text style={styles.totalFinalLabel}>Total</Text>
-                <Text style={styles.totalFinalValue}>${pedido.total.toFixed(2)}</Text>
-              </View>
+            <View style={styles.totalFila}>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalValor}>${pedido.subtotal.toFixed(2)}</Text>
+            </View>
+            
+            <View style={styles.totalFila}>
+              <Text style={styles.totalLabel}>IVA (12%)</Text>
+              <Text style={styles.totalValor}>${pedido.iva.toFixed(2)}</Text>
+            </View>
+            
+            <View style={styles.separadorDelgado} />
+            
+            <View style={styles.totalFinalFila}>
+              <Text style={styles.totalFinalLabel}>TOTAL</Text>
+              <Text style={styles.totalFinalValor}>${pedido.total.toFixed(2)}</Text>
             </View>
           </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Gracias por tu compra en Don Carlos Market
-            </Text>
-            <Text style={styles.footerSubtext}>
-              Este documento es una factura válida para efectos tributarios
-            </Text>
-            
-            {pedido.estadoPedido === "PENDIENTE_VERIFICACION" && (
-              <View style={styles.alertaContainer}>
-                <Ionicons name="warning-outline" size={16} color="#F57C00" />
-                <Text style={styles.alertaText}>
-                  Esta factura está sujeta a verificación de pago
-                </Text>
-              </View>
-            )}
-            
-            {pedido.estadoPedido === "COMPLETADO" && (
-              <View style={styles.confirmacionContainer}>
-                <Ionicons name="checkmark-circle" size={16} color="#5A8F48" />
-                <Text style={styles.confirmacionText}>
-                  Pago verificado y confirmado
-                </Text>
-              </View>
-            )}
+          <View style={styles.separador} />
+
+          {/* 6. BOTONES EN EL FOOTER */}
+          <View style={styles.botonesContainer}>
+            <TouchableOpacity
+              style={[styles.botonAccion, styles.downloadButton]}
+              onPress={handleDescargarPDF}
+              disabled={generatingPDF}
+            >
+              {generatingPDF ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <MaterialIcons name="picture-as-pdf" size={18} color="#FFFFFF" />
+                  <Text style={styles.downloadButtonText}>Descargar PDF</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.botonAccion, styles.shareButton]}
+              onPress={handleCompartirImagen}
+            >
+              <FontAwesome name="share-alt" size={16} color="#5A8F48" />
+              <Text style={styles.shareButtonText}>Compartir</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.botonAccion, styles.pedidoButton]}
+              onPress={() => router.push(`/consumidor/PedidoDetalle?id=${idPedido}`)}
+            >
+              <Ionicons name="cube-outline" size={16} color="#2D3E2B" />
+              <Text style={styles.pedidoButtonText}>Ver pedido</Text>
+            </TouchableOpacity>
           </View>
         </View>
         
         <View style={styles.bottomSpacing} />
       </ScrollView>
-
-      {/* Botones de acción */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.downloadButton]}
-          onPress={handleDescargarPDF}
-          disabled={generatingPDF}
-        >
-          {generatingPDF ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="picture-as-pdf" size={20} color="#FFFFFF" />
-              <Text style={styles.downloadButtonText}>Descargar PDF</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.shareButton]}
-          onPress={handleCompartirImagen}
-        >
-          <FontAwesome name="share-alt" size={18} color="#5A8F48" />
-          <Text style={styles.shareButtonText}>Compartir</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.pedidoButton]}
-          onPress={() => router.push(`/consumidor/PedidoDetalle?id=${idPedido}`)}
-        >
-          <Ionicons name="cube-outline" size={18} color="#2D3E2B" />
-          <Text style={styles.pedidoButtonText}>Ver pedido</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -675,7 +634,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F9FBF7',
   },
   header: {
     flexDirection: 'row',
@@ -697,7 +655,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#2D3E2B',
-    fontFamily: 'System',
   },
   headerRight: {
     width: 40,
@@ -707,334 +664,241 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 16,
+    paddingBottom: 20,
   },
   facturaContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#E8F5E9',
   },
-  facturaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    paddingBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#ECF2E3',
-  },
-  logoContainer: {
-    flexDirection: 'row',
+  
+  // 1. TÍTULO
+  tituloSeccion: {
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 16,
   },
-  logoIcon: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#5A8F48',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoEmoji: {
-    fontSize: 28,
-  },
-  empresaNombre: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7F69',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  nombrePlataforma: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#5A8F48',
+    marginBottom: 4,
+    textAlign: 'center',
   },
   facturaTitulo: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#2D3E2B',
-    fontFamily: 'System',
-    marginTop: 2,
   },
+  
+  // 2. NÚMERO DE FACTURA
   numeroFacturaContainer: {
-    backgroundColor: '#F5F9F3',
-    padding: 16,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#E3EBD9',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   numeroFacturaLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7F69',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontWeight: '600',
     marginBottom: 4,
   },
   numeroFactura: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
     color: '#5A8F48',
-    fontFamily: 'System',
     marginBottom: 2,
   },
   idPedido: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#9AAA98',
   },
-  infoGrid: {
+  
+  // 3. DETALLES Y ESTADO
+  detallesGrid: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  infoColumn: {
+  detallesColumna: {
     flex: 1,
+    marginRight: 16,
   },
-  sectionTitle: {
-    fontSize: 12,
+  estadoColumna: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  seccionTitulo: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#6B7F69',
+    color: '#2D3E2B',
+    marginBottom: 12,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
   },
-  detallesContainer: {
-    backgroundColor: '#FAFBF9',
-    padding: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ECF2E3',
-  },
-  detalleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  detalleIcon: {
-    marginRight: 10,
-  },
-  detalleContent: {
-    flex: 1,
+  detalleFila: {
+    marginBottom: 10,
   },
   detalleLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#9AAA98',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  detalleValue: {
-    fontSize: 14,
+  detalleValor: {
+    fontSize: 15,
     color: '#2D3E2B',
     fontWeight: '600',
   },
-  estadoContainer: {
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-  },
-  estadoEmoji: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
   estadoLabel: {
     fontSize: 11,
-    color: '#6B7F69',
+    color: '#9AAA98',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textAlign: 'right',
+  },
+  estadoBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 100,
+    alignItems: 'center',
   },
   estadoTexto: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
   },
-  productosSection: {
-    marginBottom: 24,
+  
+  // 4. TABLA DE PRODUCTOS
+  tablaProductos: {
+    marginBottom: 16,
   },
-  productosContainer: {
-    backgroundColor: '#FAFBF9',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ECF2E3',
-    overflow: 'hidden',
-  },
-  productosHeader: {
+  tablaHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F5F9F3',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 2,
     borderBottomColor: '#E3EBD9',
+    marginBottom: 8,
   },
-  productosHeaderText: {
+  tablaHeaderText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#2D3E2B',
+    color: '#6B7F69',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  productoRow: {
+  tablaFila: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ECF2E3',
     alignItems: 'center',
   },
-  productoText: {
+  tablaTexto: {
     fontSize: 14,
-    color: '#6B7F69',
+    color: '#2D3E2B',
   },
-  productoSubtotal: {
+  tablaSubtotal: {
+    fontSize: 14,
     color: '#5A8F48',
     fontWeight: '700',
   },
+  
+  // 5. TOTALES
   totalesContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  totalesContent: {
-    backgroundColor: '#F5F9F3',
-    padding: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#E3EBD9',
-    alignSelf: 'flex-end',
-    minWidth: 250,
-  },
-  totalItem: {
+  totalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D5E3CC',
+    marginBottom: 8,
   },
   totalLabel: {
     fontSize: 14,
     color: '#6B7F69',
   },
-  totalValue: {
+  totalValor: {
     fontSize: 15,
     fontWeight: '600',
     color: '#2D3E2B',
   },
-  totalFinal: {
-    borderBottomWidth: 0,
-    marginBottom: 0,
-    paddingBottom: 0,
+  separadorDelgado: {
+    height: 1,
+    backgroundColor: '#ECF2E3',
+    marginVertical: 10,
+  },
+  totalFinalFila: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 4,
   },
   totalFinalLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '900',
     color: '#2D3E2B',
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  totalFinalValue: {
-    fontSize: 28,
+  totalFinalValor: {
+    fontSize: 24,
     fontWeight: '900',
     color: '#5A8F48',
-    fontFamily: 'System',
   },
-  footer: {
-    paddingTop: 20,
-    borderTopWidth: 2,
-    borderTopColor: '#ECF2E3',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#6B7F69',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  footerSubtext: {
-    fontSize: 11,
-    color: '#B5C4B3',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  alertaContainer: {
+  
+  // 6. BOTONES
+  botonesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8E1',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FFECB3',
-    gap: 8,
-  },
-  alertaText: {
-    fontSize: 12,
-    color: '#F57C00',
-    fontWeight: '600',
-  },
-  confirmacionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    gap: 8,
-  },
-  confirmacionText: {
-    fontSize: 12,
-    color: '#5A8F48',
-    fontWeight: '600',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E8F5E9',
     gap: 10,
+    marginTop: 8,
   },
-  actionButton: {
+  botonAccion: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: 10,
+    gap: 6,
   },
   downloadButton: {
     backgroundColor: '#5A8F48',
-  },
-  downloadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
   shareButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#5A8F48',
   },
-  shareButtonText: {
-    color: '#5A8F48',
-    fontSize: 14,
-    fontWeight: '700',
-  },
   pedidoButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E3EBD9',
   },
+  
+  // Textos de botones específicos
+  downloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shareButtonText: {
+    color: '#5A8F48',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   pedidoButtonText: {
     color: '#2D3E2B',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  
+  // UTILIDADES
+  separador: {
+    height: 1,
+    backgroundColor: '#ECF2E3',
+    marginVertical: 20,
   },
   loadingText: {
     marginTop: 12,
@@ -1042,6 +906,8 @@ const styles = StyleSheet.create({
     color: '#6B7F69',
     fontWeight: '600',
   },
+  
+  // Estilos para pantalla de error
   emptyIconContainer: {
     width: 120,
     height: 120,

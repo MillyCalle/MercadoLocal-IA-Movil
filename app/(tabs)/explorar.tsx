@@ -15,8 +15,9 @@ import {
   View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
+import { useCarrito } from "../context/CarritoContext";
 
-// 🔥 TIPOS
+// TIPOS
 interface Producto {
   idProducto: number;
   nombreProducto: string;
@@ -51,8 +52,21 @@ interface ItemCarrito {
   cantidad: number;
 }
 
+// Componente para los círculos flotantes del fondo
+const FloatingCircles = () => {
+  return (
+    <View style={styles.floatingContainer}>
+      <View style={[styles.floatingCircle, styles.circle1]} />
+      <View style={[styles.floatingCircle, styles.circle2]} />
+      <View style={[styles.floatingCircle, styles.circle3]} />
+      <View style={[styles.floatingCircle, styles.circle4]} />
+    </View>
+  );
+};
+
 export default function ExploreTab() {
   const router = useRouter();
+  const { agregarCarrito, items } = useCarrito();
 
   // Estados
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -60,16 +74,46 @@ export default function ExploreTab() {
   const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
 
-  // Estados del carrito (si los necesitas en esta pantalla)
-  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  // Estados del carrito local (para modo invitado)
+  const [carritoLocal, setCarritoLocal] = useState<ItemCarrito[]>([]);
   const [totalCarrito, setTotalCarrito] = useState(0);
 
-  // 🔥 DETECTAR CATEGORÍA DESDE HOME - Se ejecuta cada vez que entras a esta pestaña
+  // VERIFICAR MODO INVITADO
+  useEffect(() => {
+    const checkGuestMode = async () => {
+      try {
+        const token = await AsyncStorage.getItem("authToken");
+        const user = await AsyncStorage.getItem("user");
+        
+        if (!token && !user) {
+          setIsGuestMode(true);
+          console.log("👤 Usuario en modo invitado");
+          
+          const savedCart = await AsyncStorage.getItem("guestCart");
+          if (savedCart) {
+            const parsedCart = JSON.parse(savedCart);
+            setCarritoLocal(parsedCart);
+            calcularTotalCarrito(parsedCart);
+          }
+        } else {
+          setIsGuestMode(false);
+          console.log("👤 Usuario autenticado");
+        }
+      } catch (error) {
+        console.log("Error checking guest mode:", error);
+      }
+    };
+
+    checkGuestMode();
+  }, []);
+
+  // DETECTAR CATEGORÍA DESDE HOME
   useFocusEffect(
     useCallback(() => {
       const loadCategoryFilter = async () => {
@@ -78,23 +122,17 @@ export default function ExploreTab() {
           if (savedCategory) {
             console.log("🎯 Categoría detectada desde home:", savedCategory);
             
-            // Buscar la categoría por nombre
             const categoriaEncontrada = categorias.find(
               (cat) => cat.nombreCategoria.toLowerCase() === savedCategory.toLowerCase()
             );
 
             if (categoriaEncontrada) {
-              // Aplicar el filtro de categoría
               setFiltroCategoria(String(categoriaEncontrada.idCategoria));
               setFiltroSubcategoria("");
-              // También puedes poner el nombre en la búsqueda si lo prefieres
-              // setBusqueda(savedCategory);
             } else {
-              // Si no encuentra la categoría exacta, buscar en el texto
               setBusqueda(savedCategory);
             }
 
-            // Limpiar el valor guardado para que no se aplique de nuevo
             await AsyncStorage.removeItem("searchCategory");
           }
         } catch (error) {
@@ -102,7 +140,6 @@ export default function ExploreTab() {
         }
       };
 
-      // Solo cargar si ya tenemos las categorías cargadas
       if (categorias.length > 0) {
         loadCategoryFilter();
       }
@@ -167,7 +204,112 @@ export default function ExploreTab() {
     setRefreshing(false);
   };
 
-  // 🔥 FILTROS
+  // CALCULAR TOTAL DEL CARRITO LOCAL
+  const calcularTotalCarrito = (cart: ItemCarrito[]) => {
+    const total = cart.reduce((sum, item) => {
+      return sum + (item.producto.precioProducto * item.cantidad);
+    }, 0);
+    setTotalCarrito(total);
+  };
+
+  // FUNCIÓN PARA AGREGAR AL CARRITO LOCAL (MODO INVITADO)
+  const handleAgregarCarritoLocal = async (producto: Producto) => {
+    try {
+      const existingIndex = carritoLocal.findIndex(
+        item => item.producto.idProducto === producto.idProducto
+      );
+      
+      let nuevoCarrito: ItemCarrito[];
+      
+      if (existingIndex >= 0) {
+        nuevoCarrito = [...carritoLocal];
+        nuevoCarrito[existingIndex].cantidad += 1;
+      } else {
+        nuevoCarrito = [...carritoLocal, { producto, cantidad: 1 }];
+      }
+      
+      setCarritoLocal(nuevoCarrito);
+      calcularTotalCarrito(nuevoCarrito);
+      
+      await AsyncStorage.setItem("guestCart", JSON.stringify(nuevoCarrito));
+      
+      Alert.alert(
+        "✅ ¡Agregado!",
+        `${producto.nombreProducto} agregado al carrito`,
+        [{ text: "OK" }]
+      );
+      
+    } catch (error) {
+      console.error("Error agregando al carrito local:", error);
+      Alert.alert("Error", "No se pudo agregar al carrito");
+    }
+  };
+
+  // FUNCIÓN PARA AGREGAR AL CARRITO (MODO AUTENTICADO)
+  const handleAgregarCarrito = async (producto: Producto) => {
+    if (producto.stockProducto <= 0) {
+      Alert.alert("Sin stock", "Este producto no está disponible por el momento");
+      return;
+    }
+
+    if (isGuestMode) {
+      await handleAgregarCarritoLocal(producto);
+    } else {
+      try {
+        console.log("📤 Agregando producto al carrito:", producto.idProducto);
+        
+        await agregarCarrito(producto.idProducto, 1);
+
+        Alert.alert(
+          "✅ ¡Agregado!", 
+          `${producto.nombreProducto} agregado al carrito`,
+          [{ text: "OK" }]
+        );
+        
+      } catch (error: any) {
+        console.error("❌ Error agregando al carrito:", error);
+        
+        let errorMessage = "No se pudo agregar el producto al carrito";
+        if (error.message.includes("Debes iniciar sesión") || 
+            error.message.includes("No autorizado") ||
+            error.message.includes("403")) {
+          Alert.alert(
+            "Inicia sesión",
+            "Debes iniciar sesión para agregar productos al carrito",
+            [
+              { text: "Ahora no" },
+              { 
+                text: "Iniciar sesión", 
+                onPress: () => router.push("/login")
+              }
+            ]
+          );
+        } else {
+          Alert.alert("Error", error.message || errorMessage, [{ text: "OK" }]);
+        }
+      }
+    }
+  };
+
+  // VER CARRITO
+  const verCarrito = () => {
+    if (isGuestMode) {
+      if (carritoLocal.length === 0) {
+        Alert.alert("Carrito vacío", "Agrega productos al carrito primero");
+        return;
+      }
+      router.push("/carrito" as any);
+    } else {
+      router.push("/carrito" as any);
+    }
+  };
+
+  // VER DETALLE DEL PRODUCTO
+  const handleProductoPress = (producto: Producto) => {
+    router.push(`/producto/${producto.idProducto}` as any);
+  };
+
+  // FILTROS
   const productosFiltrados = productos.filter((p) => {
     const cumpleBusqueda = p.nombreProducto
       .toLowerCase()
@@ -184,136 +326,6 @@ export default function ExploreTab() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
-  // 🔥 AGREGAR AL CARRITO
-  const handleAgregarCarrito = async (producto: Producto) => {
-    try {
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para agregar productos al carrito",
-          [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login") },
-          ]
-        );
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/carrito/agregar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          idUsuario: user.idUsuario,
-          idProducto: producto.idProducto,
-          cantidad: 1,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Error al agregar al carrito");
-
-      Alert.alert("¡Agregado!", `${producto.nombreProducto} agregado al carrito`);
-    } catch (error) {
-      console.error("Error agregando al carrito:", error);
-      Alert.alert("Error", "No se pudo agregar el producto al carrito");
-    }
-  };
-
-  // 🔥 FINALIZAR COMPRA (nueva función)
-  const finalizarCompra = async () => {
-    try {
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para finalizar la compra",
-          [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
-          ]
-        );
-        return;
-      }
-
-      // Validar que el carrito no esté vacío
-      if (carrito.length === 0) {
-        Alert.alert("Carrito vacío", "Agrega productos al carrito antes de finalizar la compra");
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-      const idConsumidor = user.idConsumidor || user.idUsuario;
-
-      // Preparar los detalles del pedido desde el carrito
-      const detalles = carrito.map((item) => ({
-        idProducto: item.producto.idProducto,
-        cantidad: item.cantidad,
-      }));
-
-      // Obtener el ID del vendedor del primer producto (ajustar según tu lógica de negocio)
-      const idVendedor = carrito[0]?.producto?.idVendedor;
-
-      const body = {
-        idConsumidor: idConsumidor,
-        idVendedor: idVendedor,
-        metodoPago: "TARJETA", // Puedes ajustar esto según tu flujo
-        detalles: detalles,
-      };
-
-      console.log("💳 Finalizando compra desde carrito:", body);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/crear-desde-carrito`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const responseText = await response.text();
-      console.log("📥 Respuesta crear pedido:", responseText);
-
-      if (!response.ok) {
-        let errorMessage = "Error al crear el pedido";
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = responseText || errorMessage;
-        }
-        console.error("❌ Error del servidor:", errorMessage);
-        Alert.alert("Error", errorMessage);
-        return;
-      }
-
-      // ✅ Parsear la respuesta para obtener el ID del pedido
-      const pedidoCreado = JSON.parse(responseText);
-      console.log("✅ Pedido creado desde carrito:", pedidoCreado);
-
-      // ✅ Redirigir a la página del pedido
-      router.push(`/consumidor/Pedido/${pedidoCreado.idPedido}` as any);
-
-    } catch (error) {
-      console.error("❌ Error al finalizar compra:", error);
-      Alert.alert("Error", "No se pudo crear el pedido. Verifica tu conexión.");
-    }
-  };
-
-  // 🔥 VER DETALLE
-  const handleProductoPress = (producto: Producto) => {
-    router.push(`/producto/${producto.idProducto}` as any);
-  };
-
   // Renderizar producto
   const renderProducto = ({ item }: { item: Producto }) => (
     <TouchableOpacity
@@ -327,7 +339,7 @@ export default function ExploreTab() {
         resizeMode="cover"
       />
 
-      {item.stockProducto > 0 && (
+      {item.stockProducto > 0 ? (
         <View
           style={[
             styles.stockBadge,
@@ -337,6 +349,10 @@ export default function ExploreTab() {
           <Text style={styles.stockText}>
             {item.stockProducto > 10 ? "✓" : "⚡"}
           </Text>
+        </View>
+      ) : (
+        <View style={styles.stockBadgeOut}>
+          <Text style={styles.stockText}>✗</Text>
         </View>
       )}
 
@@ -363,17 +379,24 @@ export default function ExploreTab() {
 
         <View style={styles.productFooter}>
           <View>
-            <Text style={styles.productPrice}>${item.precioProducto}</Text>
+            <Text style={styles.productPrice}>${item.precioProducto.toFixed(2)}</Text>
             {item.unidadMedida && (
               <Text style={styles.productUnit}>{item.unidadMedida}</Text>
             )}
           </View>
 
+          {/* BOTÓN DE CARRITO ACTUALIZADO - COLOR NARANJA */}
           <TouchableOpacity
-            style={styles.addButton}
+            style={[
+              styles.addButton,
+              item.stockProducto <= 0 && styles.addButtonDisabled
+            ]}
             onPress={() => handleAgregarCarrito(item)}
+            disabled={item.stockProducto <= 0}
           >
-            <Text style={styles.addButtonText}>🛒</Text>
+            <Text style={styles.addButtonText}>
+              {item.stockProducto > 0 ? "+" : "✗"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -383,7 +406,7 @@ export default function ExploreTab() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6b8e4e" />
+        <ActivityIndicator size="large" color="#FF6B35" />
         <Text style={styles.loadingText}>Cargando productos...</Text>
       </View>
     );
@@ -391,13 +414,42 @@ export default function ExploreTab() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header con efectos visuales */}
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>🛒</Text>
-        <Text style={styles.headerTitle}>Explorar Productos</Text>
+        {/* Círculos flotantes de fondo */}
+        <FloatingCircles />
+        
+        <View style={styles.headerTop}>
+          <Text style={styles.headerIcon}>🛒</Text>
+          {isGuestMode && (
+            <View style={styles.guestBadge}>
+              <Text style={styles.guestBadgeText}>Modo Invitado</Text>
+            </View>
+          )}
+        </View>
+        
+        {/* Título con efecto especial */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Explorar Productos</Text>
+          <View style={styles.titleUnderline} />
+        </View>
+        
         <Text style={styles.headerSubtitle}>
-          Encuentra lo que necesitas
+          {isGuestMode 
+            ? "Explora productos. Inicia sesión para comprar." 
+            : "Encuentra lo que necesitas"}
         </Text>
+        
+        {isGuestMode && (
+          <TouchableOpacity
+            style={styles.loginPrompt}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.loginPromptText}>
+              👤 Inicia sesión para comprar
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Búsqueda y filtros */}
@@ -408,7 +460,7 @@ export default function ExploreTab() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#6b8e4e"]}
+            colors={["#FF6B35"]}
           />
         }
       >
@@ -478,7 +530,7 @@ export default function ExploreTab() {
             ))}
           </ScrollView>
 
-          {/* Subcategorías (si hay categoría seleccionada) */}
+          {/* Subcategorías */}
           {filtroCategoria && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <TouchableOpacity
@@ -573,20 +625,6 @@ export default function ExploreTab() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
-
-      {/* Botón flotante de finalizar compra (ejemplo) */}
-      {carrito.length > 0 && (
-        <View style={styles.checkoutContainer}>
-          <TouchableOpacity
-            style={styles.checkoutButton}
-            onPress={finalizarCompra}
-          >
-            <Text style={styles.checkoutButtonText}>
-              💳 Finalizar Compra ${totalCarrito.toFixed(2)}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -596,6 +634,50 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
+  
+  // Efectos de círculos flotantes
+  floatingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 100,
+    opacity: 0.15,
+  },
+  circle1: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#FF6B35',
+    top: 20,
+    left: 20,
+  },
+  circle2: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#3498DB',
+    top: 60,
+    right: 30,
+  },
+  circle3: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#9B59B6',
+    bottom: 40,
+    left: 40,
+  },
+  circle4: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#2ECC71',
+    bottom: 80,
+    right: 50,
+  },
+  
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -605,37 +687,101 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#6b8e4e",
+    color: "#FF6B35",
     fontWeight: "600",
+    fontFamily: "System",
   },
+  
+  // Header mejorado
   header: {
     backgroundColor: "white",
     paddingTop: 50,
-    paddingBottom: 20,
+    paddingBottom: 25,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
     alignItems: "center",
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    zIndex: 1,
   },
   headerIcon: {
     fontSize: 40,
+  },
+  guestBadge: {
+    backgroundColor: "#fbbf24",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  guestBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#78350f",
+    fontFamily: "System",
+  },
+  
+  // Título con efectos
+  titleContainer: {
+    alignItems: 'center',
     marginBottom: 8,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "700",
-    color: "#3a5a40",
+    color: "#2C3E50",
+    textAlign: 'center',
+    fontFamily: "System",
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
+  },
+  titleUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginTop: 6,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748b",
     marginTop: 4,
+    textAlign: "center",
+    fontFamily: "System",
+    zIndex: 1,
   },
+  loginPrompt: {
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 15,
+    zIndex: 1,
+  },
+  loginPromptText: {
+    color: "#15803d",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
   content: {
     flex: 1,
   },
@@ -653,6 +799,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
   searchIcon: {
     fontSize: 18,
@@ -662,6 +810,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#333",
+    fontFamily: "System",
   },
   clearIcon: {
     fontSize: 18,
@@ -678,13 +827,14 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
   },
   filterChipActive: {
-    backgroundColor: "#6b8e4e",
-    borderColor: "#6b8e4e",
+    backgroundColor: "#FF6B35",
+    borderColor: "#FF6B35",
   },
   filterChipText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#64748b",
+    fontFamily: "System",
   },
   filterChipTextActive: {
     color: "white",
@@ -702,6 +852,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#64748b",
+    fontFamily: "System",
   },
   clearFiltersButton: {
     backgroundColor: "#fee",
@@ -716,6 +867,7 @@ const styles = StyleSheet.create({
     color: "#c33",
     fontSize: 13,
     fontWeight: "600",
+    fontFamily: "System",
   },
   resultsContainer: {
     padding: 15,
@@ -724,6 +876,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#64748b",
     fontWeight: "600",
+    fontFamily: "System",
   },
   gridContainer: {
     paddingHorizontal: 15,
@@ -734,14 +887,16 @@ const styles = StyleSheet.create({
   },
   productCard: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 16,
     width: "48%",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   productImage: {
     width: "100%",
@@ -752,20 +907,36 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "#6b8e4e",
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    backgroundColor: "#2ECC71",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "white",
   },
   stockBadgeLow: {
-    backgroundColor: "#f59e0b",
+    backgroundColor: "#F39C12",
+  },
+  stockBadgeOut: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#E74C3C",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "white",
   },
   stockText: {
     color: "white",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontFamily: "System",
   },
   productInfo: {
     padding: 12,
@@ -776,11 +947,13 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     marginBottom: 4,
     minHeight: 36,
+    fontFamily: "System",
   },
   productCategory: {
     fontSize: 11,
     color: "#64748b",
     marginBottom: 6,
+    fontFamily: "System",
   },
   ratingContainer: {
     flexDirection: "row",
@@ -794,32 +967,51 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 10,
     color: "#94a3b8",
+    fontFamily: "System",
   },
   productFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 4,
   },
   productPrice: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#6b8e4e",
+    color: "#FF6B35",
+    fontFamily: "System",
   },
   productUnit: {
     fontSize: 9,
     color: "#94a3b8",
+    fontFamily: "System",
   },
+  
+  // BOTÓN DE CARRITO ACTUALIZADO - COLOR NARANJA
   addButton: {
-    backgroundColor: "#6b8e4e",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    backgroundColor: "#FF6B35",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  addButtonDisabled: {
+    backgroundColor: "#9ca3af",
+    shadowColor: "#9ca3af",
   },
   addButtonText: {
-    fontSize: 16,
+    fontSize: 18,
+    color: "white",
+    fontWeight: "600",
+    fontFamily: "System",
   },
+  
   emptyContainer: {
     alignItems: "center",
     paddingVertical: 60,
@@ -833,38 +1025,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1e293b",
     marginBottom: 8,
+    fontFamily: "System",
   },
   emptyText: {
     fontSize: 14,
     color: "#94a3b8",
     textAlign: "center",
     paddingHorizontal: 40,
-  },
-  // Estilos para el botón de finalizar compra
-  checkoutContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "white",
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  checkoutButton: {
-    backgroundColor: "#6b8e4e",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  checkoutButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "System",
   },
 });

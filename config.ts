@@ -15,7 +15,7 @@ const NETWORK_CONFIGS = {
   // Red del instituto
   INSTITUTO: {
     name: "Red Instituto",
-    ip: "192.168.54.59", // 👈 CAMBIA cuando estés en el instituto
+    ip: "192.168.54.2", // 👈 CAMBIA cuando estés en el instituto
     port: "8080"
   },
   

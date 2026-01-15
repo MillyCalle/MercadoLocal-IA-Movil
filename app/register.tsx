@@ -2,17 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { API_CONFIG, getCurrentNetwork } from "../config";
 
@@ -47,6 +49,10 @@ export default function RegisterScreen() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedDay, setSelectedDay] = useState("");
   const router = useRouter();
 
   const handleChange = (name: string, value: string) => {
@@ -55,6 +61,22 @@ export default function RegisterScreen() {
 
   const handleRoleChange = (newRole: number) => {
     setForm({ ...form, idRol: newRole });
+  };
+
+  const handleOpenDatePicker = () => {
+    setShowDatePicker(true);
+  };
+
+  const handleCloseDatePicker = () => {
+    setShowDatePicker(false);
+  };
+
+  const handleDateConfirm = () => {
+    if (selectedYear && selectedMonth && selectedDay) {
+      const formattedDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-${selectedDay.padStart(2, '0')}`;
+      setForm({ ...form, fechaNacimiento: formattedDate });
+    }
+    setShowDatePicker(false);
   };
 
   const handleRegister = async () => {
@@ -131,16 +153,13 @@ export default function RegisterScreen() {
 
         Alert.alert(
           "¡Éxito! 🎉",
-          `Bienvenido ${form.nombre}`,
+          `¡Bienvenido ${form.nombre}! Tu cuenta ha sido creada exitosamente.`,
           [
             {
               text: "Continuar",
               onPress: () => {
-                if (data.rol === "VENDEDOR") {
-                  router.replace("/(tabs)/profile");
-                } else {
-                  router.replace("/(tabs)");
-                }
+                console.log("📱 → Redirigiendo a tabs después del registro");
+                router.replace("/(tabs)");
               }
             }
           ]
@@ -169,6 +188,42 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      await AsyncStorage.setItem("isGuest", "true");
+      await AsyncStorage.removeItem("authToken");
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("rol");
+      await AsyncStorage.removeItem("idUsuario");
+      await AsyncStorage.removeItem("idVendedor");
+      await AsyncStorage.removeItem("idConsumidor");
+      
+      console.log("👤 Usuario invitado registrado");
+      router.replace("/(tabs)/explorar");
+    } catch (error) {
+      console.error("Error en login invitado:", error);
+      Alert.alert("Error", "No se pudo iniciar como invitado");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoginRedirect = () => {
+    router.push("/login");
+  };
+
+  const handleBackToWelcome = () => {
+    router.replace("/WelcomeScreen");
+  };
+
+  // Generar arrays para años, meses y días
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
+  const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -178,12 +233,21 @@ export default function RegisterScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("../assets/images/Logo2.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={handleBackToWelcome}
+            style={styles.backButton}
+            disabled={loading}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../assets/images/Logo2.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         <Text style={styles.title}>Crear Cuenta</Text>
@@ -195,23 +259,25 @@ export default function RegisterScreen() {
             <TouchableOpacity
               style={[styles.roleButton, form.idRol === 3 && styles.roleButtonActive]}
               onPress={() => handleRoleChange(3)}
+              disabled={loading}
             >
               <Text style={styles.roleIcon}>🛒</Text>
               <Text style={[styles.roleText, form.idRol === 3 && styles.roleTextActive]}>
                 Consumidor
               </Text>
-              <Text style={styles.roleDesc}>Compra</Text>
+              <Text style={styles.roleDesc}>Compra productos</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.roleButton, form.idRol === 2 && styles.roleButtonActive]}
               onPress={() => handleRoleChange(2)}
+              disabled={loading}
             >
               <Text style={styles.roleIcon}>🏪</Text>
               <Text style={[styles.roleText, form.idRol === 2 && styles.roleTextActive]}>
                 Vendedor
               </Text>
-              <Text style={styles.roleDesc}>Vende</Text>
+              <Text style={styles.roleDesc}>Vende productos</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -244,7 +310,7 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Correo *</Text>
+        <Text style={styles.label}>Correo electrónico *</Text>
         <TextInput
           style={styles.input}
           placeholder="tu@correo.com"
@@ -277,19 +343,27 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>Fecha nacimiento *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#aaa"
-          value={form.fechaNacimiento}
-          onChangeText={(v) => handleChange("fechaNacimiento", v)}
-          editable={!loading}
-        />
+        <Text style={styles.label}>Fecha de nacimiento *</Text>
+        
+        <TouchableOpacity
+          style={styles.dateInputContainer}
+          onPress={handleOpenDatePicker}
+          disabled={loading}
+        >
+          <View style={styles.dateInput}>
+            <Text style={[
+              styles.dateText, 
+              !form.fechaNacimiento && styles.placeholderText
+            ]}>
+              {form.fechaNacimiento ? form.fechaNacimiento : "YYYY-MM-DD"}
+            </Text>
+            <Text style={styles.calendarIcon}>📅</Text>
+          </View>
+        </TouchableOpacity>
 
         {form.idRol === 3 && (
           <>
-            <Text style={styles.sectionTitle}>Datos Consumidor</Text>
+            <Text style={styles.sectionTitle}>Datos del Consumidor</Text>
             <Text style={styles.label}>Cédula *</Text>
             <TextInput
               style={styles.input}
@@ -303,7 +377,7 @@ export default function RegisterScreen() {
             <Text style={styles.label}>Dirección *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Dirección"
+              placeholder="Tu dirección completa"
               placeholderTextColor="#aaa"
               value={form.direccion}
               onChangeText={(v) => handleChange("direccion", v)}
@@ -324,8 +398,8 @@ export default function RegisterScreen() {
 
         {form.idRol === 2 && (
           <>
-            <Text style={styles.sectionTitle}>Datos Negocio</Text>
-            <Text style={styles.label}>Nombre negocio *</Text>
+            <Text style={styles.sectionTitle}>Datos del Negocio</Text>
+            <Text style={styles.label}>Nombre del negocio *</Text>
             <TextInput
               style={styles.input}
               placeholder="Frutas Don Pepe"
@@ -344,16 +418,16 @@ export default function RegisterScreen() {
               keyboardType="numeric"
               editable={!loading}
             />
-            <Text style={styles.label}>Dirección negocio *</Text>
+            <Text style={styles.label}>Dirección del negocio *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Local 12"
+              placeholder="Local 12, Mercado Central"
               placeholderTextColor="#aaa"
               value={form.direccionEmpresa}
               onChangeText={(v) => handleChange("direccionEmpresa", v)}
               editable={!loading}
             />
-            <Text style={styles.label}>Teléfono negocio *</Text>
+            <Text style={styles.label}>Teléfono del negocio *</Text>
             <TextInput
               style={styles.input}
               placeholder="0987654321"
@@ -363,10 +437,10 @@ export default function RegisterScreen() {
               keyboardType="phone-pad"
               editable={!loading}
             />
-            <Text style={styles.label}>Descripción</Text>
+            <Text style={styles.label}>Descripción (opcional)</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder="Descripción..."
+              placeholder="Describe tu negocio, productos que ofreces, etc..."
               placeholderTextColor="#aaa"
               value={form.descripcion}
               onChangeText={(v) => handleChange("descripcion", v)}
@@ -385,16 +459,27 @@ export default function RegisterScreen() {
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="white" size="small" />
-              <Text style={styles.registerButtonText}>Registrando...</Text>
+              <Text style={styles.registerButtonText}>Creando cuenta...</Text>
             </View>
           ) : (
-            <Text style={styles.registerButtonText}>Registrarse</Text>
+            <Text style={styles.registerButtonText}>Crear cuenta</Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          onPress={() => router.push("/login")}
+        <TouchableOpacity
+          style={styles.guestButton}
+          onPress={handleGuestLogin}
           disabled={loading}
+        >
+          <Text style={styles.guestButtonText}>
+            Continuar como invitado
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={handleLoginRedirect}
+          disabled={loading}
+          style={styles.loginLinkContainer}
         >
           <Text style={styles.loginText}>
             ¿Ya tienes cuenta?{" "}
@@ -402,8 +487,121 @@ export default function RegisterScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+          onPress={handleBackToWelcome}
+          disabled={loading}
+          style={styles.backToHomeContainer}
+        >
+          <Text style={styles.backToHomeText}>← Volver a Inicio</Text>
+        </TouchableOpacity>
+
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      {/* MODAL PERSONALIZADO PARA FECHA */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showDatePicker}
+        onRequestClose={handleCloseDatePicker}
+      >
+        <TouchableWithoutFeedback onPress={handleCloseDatePicker}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.datePickerContainer}>
+                <View style={styles.datePickerHeader}>
+                  <Text style={styles.datePickerTitle}>Selecciona tu fecha de nacimiento</Text>
+                  <TouchableOpacity onPress={handleCloseDatePicker}>
+                    <Text style={styles.closeButton}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.dateSelectors}>
+                  <View style={styles.dateSelector}>
+                    <Text style={styles.dateSelectorLabel}>Año</Text>
+                    <ScrollView style={styles.dateScrollView}>
+                      {years.map((year) => (
+                        <TouchableOpacity
+                          key={year}
+                          style={[
+                            styles.dateOption,
+                            selectedYear === year && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedYear(year)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedYear === year && styles.dateOptionTextSelected
+                          ]}>
+                            {year}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  
+                  <View style={styles.dateSelector}>
+                    <Text style={styles.dateSelectorLabel}>Mes</Text>
+                    <ScrollView style={styles.dateScrollView}>
+                      {months.map((month) => (
+                        <TouchableOpacity
+                          key={month}
+                          style={[
+                            styles.dateOption,
+                            selectedMonth === month && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedMonth(month)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedMonth === month && styles.dateOptionTextSelected
+                          ]}>
+                            {month}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  
+                  <View style={styles.dateSelector}>
+                    <Text style={styles.dateSelectorLabel}>Día</Text>
+                    <ScrollView style={styles.dateScrollView}>
+                      {days.map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.dateOption,
+                            selectedDay === day && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedDay(day)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedDay === day && styles.dateOptionTextSelected
+                          ]}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.confirmButton,
+                    (!selectedYear || !selectedMonth || !selectedDay) && styles.confirmButtonDisabled
+                  ]}
+                  onPress={handleDateConfirm}
+                  disabled={!selectedYear || !selectedMonth || !selectedDay}
+                >
+                  <Text style={styles.confirmButtonText}>Confirmar Fecha</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -413,15 +611,28 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: "#fffdf7",
     padding: 20,
-    paddingTop: 50,
+    paddingTop: 40,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 10,
+  },
+  backIcon: {
+    fontSize: 24,
+    color: "#3a5a40",
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 20,
+    flex: 1,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
   },
   title: {
     fontSize: 28,
@@ -493,6 +704,114 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 12,
   },
+  dateInputContainer: {
+    marginBottom: 5,
+  },
+  dateInput: {
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#e0ddd0",
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  placeholderText: {
+    color: "#aaa",
+  },
+  calendarIcon: {
+    fontSize: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  datePickerContainer: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "70%",
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#3a5a40",
+    flex: 1,
+  },
+  closeButton: {
+    fontSize: 24,
+    color: "#666",
+    paddingHorizontal: 10,
+  },
+  dateSelectors: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  dateSelector: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  dateSelectorLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3a5a40",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  dateScrollView: {
+    maxHeight: 200,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+  },
+  dateOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    alignItems: "center",
+  },
+  dateOptionSelected: {
+    backgroundColor: "#6b8e4e",
+  },
+  dateOptionText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  dateOptionTextSelected: {
+    color: "white",
+    fontWeight: "600",
+  },
+  confirmButton: {
+    backgroundColor: "#6b8e4e",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  confirmButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  confirmButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   input: {
     backgroundColor: "white",
     borderWidth: 2,
@@ -552,14 +871,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  guestButton: {
+    backgroundColor: "#e8f4ea",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 15,
+    borderWidth: 2,
+    borderColor: "#6b8e4e",
+  },
+  guestButtonText: {
+    color: "#3a5a40",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  loginLinkContainer: {
+    marginTop: 20,
+  },
   loginText: {
     textAlign: "center",
-    marginTop: 20,
     fontSize: 14,
     color: "#666",
   },
   loginLink: {
     color: "#d48f27",
     fontWeight: "700",
+  },
+  backToHomeContainer: {
+    marginTop: 15,
+  },
+  backToHomeText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#6b8e4e",
+    fontWeight: "600",
   },
 });

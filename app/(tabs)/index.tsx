@@ -117,28 +117,6 @@ export default function HomeTab() {
     setRefreshing(false);
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      "Cerrar sesión",
-      "¿Estás seguro de que quieres cerrar sesión?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Salir",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await AsyncStorage.clear();
-              router.replace("/");
-            } catch (error) {
-              console.log("Error al cerrar sesión:", error);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   // 🔥 BÚSQUEDA - Va a Explore
   const handleSearch = () => {
     // Simplemente navegar a explore
@@ -363,26 +341,6 @@ export default function HomeTab() {
             </View>
           )}
         </View>
-
-        {/* Banner promocional */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.promoBanner} onPress={handleVerTodos}>
-            <View style={styles.promoContent}>
-              <Text style={styles.promoTitle}>🎉 Ofertas del día</Text>
-              <Text style={styles.promoSubtitle}>
-                Hasta 30% de descuento en productos seleccionados
-              </Text>
-              <View style={styles.promoButton}>
-                <Text style={styles.promoButtonText}>Ver ofertas</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Botón de cerrar sesión */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>🚪 Cerrar sesión</Text>
-        </TouchableOpacity>
 
         {/* INFO DE RED (DEV) */}
         <TouchableOpacity
@@ -769,56 +727,6 @@ const styles = StyleSheet.create({
     color: "#6b8e4e",
     fontWeight: "600",
     flex: 1,
-  },
-  promoBanner: {
-    backgroundColor: "#6b8e4e",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  promoContent: {
-    gap: 8,
-  },
-  promoTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "white",
-  },
-  promoSubtitle: {
-    fontSize: 14,
-    color: "#e8f5e9",
-  },
-  promoButton: {
-    backgroundColor: "white",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 8,
-  },
-  promoButtonText: {
-    color: "#6b8e4e",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  logoutButton: {
-    backgroundColor: "#fee",
-    padding: 16,
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginTop: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#fcc",
-  },
-  logoutText: {
-    color: "#c33",
-    fontWeight: "600",
-    fontSize: 16,
   },
   devInfo: {
     backgroundColor: "rgba(107, 142, 78, 0.9)",

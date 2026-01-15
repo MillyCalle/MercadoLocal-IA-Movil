@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -46,7 +47,9 @@ export default function Profile() {
       const token = await AsyncStorage.getItem("authToken");
       
       if (!token) {
-        router.replace("/auth/login" as any);
+        // Redirigir a WelcomeScreen
+        console.log("🔐 No hay token, redirigiendo a WelcomeScreen");
+        router.replace("/WelcomeScreen");
         return;
       }
 
@@ -64,10 +67,53 @@ export default function Profile() {
       setPerfil(data);
     } catch (error) {
       console.error("❌ Error al cargar perfil:", error);
-      router.replace("/auth/login" as any);
+      // Redirigir a WelcomeScreen en caso de error
+      router.replace("/WelcomeScreen");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Función para cerrar sesión - CORREGIDA
+  const handleLogout = async () => {
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Estás seguro de que quieres cerrar sesión?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar sesión",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Limpiar TODOS los datos de sesión
+              await AsyncStorage.multiRemove([
+                "authToken", 
+                "user", 
+                "token", 
+                "rol", 
+                "idUsuario",
+                "idVendedor", 
+                "idConsumidor",
+                "isGuest",         
+                "guestCart",      
+                "guestLoginTime",  
+                "searchCategory"   
+              ]);
+              
+              console.log("✅ Sesión cerrada exitosamente");
+              
+              
+              router.replace("/WelcomeScreen");
+              
+            } catch (error) {
+              console.log("❌ Error al cerrar sesión:", error);
+              Alert.alert("Error", "No se pudo cerrar sesión. Intenta nuevamente.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -123,6 +169,14 @@ export default function Profile() {
       </TouchableOpacity>
     );
   };
+
+  // Botón de cerrar sesión
+  const LogoutButton = () => (
+    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <Text style={styles.logoutIcon}>🚪</Text>
+      <Text style={styles.logoutText}>Cerrar sesión</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -180,20 +234,20 @@ export default function Profile() {
           {perfil.rol === "CONSUMIDOR" && (
             <>
               <ActionButton
-                onPress={() => router.push("/consumidor/EditarPerfil" as any)}
+                onPress={() => router.push("/consumidor/EditarPerfil")}
                 icon="✏️"
               >
                 Editar perfil
               </ActionButton>
               <ActionButton
-                onPress={() => router.push("/(tabs)/Favoritos" as any)}
+                onPress={() => router.push("/(tabs)/Favoritos")}
                 variant="secondary"
                 icon="❤️"
               >
                 Ver favoritos
               </ActionButton>
               <ActionButton
-                onPress={() => router.push("/consumidor/MisPedidos" as any)}
+                onPress={() => router.push("/consumidor/MisPedidos")}
                 variant="secondary"
                 icon="📦"
               >
@@ -307,6 +361,31 @@ export default function Profile() {
         </View>
       )}
 
+      {/*Botón de cerrar sesión */}
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>Gestión de cuenta</Text>
+        <Text style={styles.cardTitle}>🔐 Seguridad</Text>
+        
+        <LogoutButton />
+        
+        {/* Opción para eliminar cuenta (opcional) */}
+        <TouchableOpacity 
+          style={styles.deleteAccountButton}
+          onPress={() => Alert.alert(
+            "Eliminar cuenta",
+            "Esta acción no se puede deshacer. ¿Estás seguro?",
+            [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Eliminar", style: "destructive", onPress: () => {
+                Alert.alert("Info", "Contacta al soporte para eliminar tu cuenta.");
+              }}
+            ]
+          )}
+        >
+          <Text style={styles.deleteAccountText}>🗑️ Eliminar mi cuenta</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.footerContent}>
@@ -318,6 +397,12 @@ export default function Profile() {
         <Text style={styles.footerSubtitle}>
           Juntos apoyamos el comercio local y sostenible
         </Text>
+        
+        {/* Info de versión/actualización */}
+        <View style={styles.versionInfo}>
+          <Text style={styles.versionText}>v1.0.0</Text>
+          <Text style={styles.versionSubtext}>MercadoLocal-IA</Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -549,6 +634,42 @@ const styles = StyleSheet.create({
     color: "#6B7F69",
     lineHeight: 22,
   },
+  // Estilos para el botón de cerrar sesión
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    backgroundColor: "#FEE2E2",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginBottom: 12,
+  },
+  logoutIcon: {
+    fontSize: 20,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#DC2626",
+  },
+  //Botón para eliminar cuenta (opcional)
+  deleteAccountButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FFF5F5",
+  },
+  deleteAccountText: {
+    fontSize: 14,
+    color: "#DC2626",
+    fontWeight: "600",
+  },
   footer: {
     backgroundColor: "white",
     borderRadius: 20,
@@ -580,5 +701,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9AAA98",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  // Info de versión
+  versionInfo: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  versionText: {
+    fontSize: 11,
+    color: "#9AAA98",
+    fontWeight: "600",
+  },
+  versionSubtext: {
+    fontSize: 10,
+    color: "#B5C4B3",
+    marginTop: 2,
   },
 });

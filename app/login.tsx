@@ -2,17 +2,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { API_CONFIG, getCurrentNetwork } from "../config";
 
@@ -78,6 +78,7 @@ export default function LoginScreen() {
       const data: LoginResponse = await response.json();
       console.log("✅ Login exitoso:", data);
 
+      // Guardar todos los datos de autenticación
       await AsyncStorage.setItem("authToken", data.token);
       await AsyncStorage.setItem("token", data.token);
       await AsyncStorage.setItem("user", JSON.stringify(data));
@@ -94,19 +95,9 @@ export default function LoginScreen() {
 
       console.log("💾 Datos guardados");
 
-      if (data.rol === "VENDEDOR") {
-        console.log("🏪 → vendedor");
-        router.replace("/(tabs)/profile");
-      } else if (data.rol === "ADMIN") {
-        console.log("👑 → admin");
-        router.replace("/(tabs)");
-      } else if (data.rol === "CONSUMIDOR") {
-        console.log("🛒 → consumidor");
-        router.replace("/(tabs)");
-      } else {
-        console.log("📱 → home");
-        router.replace("/(tabs)");
-      }
+      // 🔥 IMPORTANTE: Redirigir siempre a (tabs) después del login exitoso
+      console.log("📱 → Redirigiendo a tabs");
+      router.replace("/(tabs)");
 
     } catch (error: any) {
       console.error("❌ Error:", error);
@@ -125,6 +116,41 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🔥 NUEVA FUNCIÓN: Login como invitado
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    try {
+      // Guardar estado de invitado en AsyncStorage
+      await AsyncStorage.setItem("isGuest", "true");
+      await AsyncStorage.removeItem("authToken");
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("rol");
+      await AsyncStorage.removeItem("idUsuario");
+      await AsyncStorage.removeItem("idVendedor");
+      await AsyncStorage.removeItem("idConsumidor");
+      
+      console.log("👤 Usuario invitado registrado");
+      
+      // Redirigir directamente a explorar (no a tabs)
+      router.replace("/(tabs)/explorar");
+    } catch (error) {
+      console.error("Error en login invitado:", error);
+      Alert.alert("Error", "No se pudo iniciar como invitado");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterRedirect = () => {
+    router.push("/register");
+  };
+
+  const handleBackToWelcome = () => {
+    // 🔥 CORREGIDO: Usar replace para ir al inicio
+    router.replace("/WelcomeScreen");
   };
 
   const mostrarConfig = () => {
@@ -210,9 +236,21 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            onPress={() => router.push("/register")}
+          {/* 🔥 BOTÓN PARA INVITADO */}
+          <TouchableOpacity
+            style={styles.guestButton}
+            onPress={handleGuestLogin}
             disabled={loading}
+          >
+            <Text style={styles.guestButtonText}>
+              Continuar como invitado
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            onPress={handleRegisterRedirect}
+            disabled={loading}
+            style={styles.registerContainer}
           >
             <Text style={styles.registerText}>
               ¿No tienes cuenta?{" "}
@@ -221,10 +259,11 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            onPress={() => router.back()}
+            onPress={handleBackToWelcome}
             disabled={loading}
+            style={styles.backContainer}
           >
-            <Text style={styles.backText}>← Volver</Text>
+            <Text style={styles.backText}>← Volver a Inicio</Text>
           </TouchableOpacity>
         </View>
 
@@ -330,9 +369,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  // 🔥 NUEVOS ESTILOS PARA BOTÓN INVITADO
+  guestButton: {
+    backgroundColor: "#e8f4ea",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 15,
+    borderWidth: 2,
+    borderColor: "#6b8e4e",
+  },
+  guestButtonText: {
+    color: "#3a5a40",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  registerContainer: {
+    marginTop: 20,
+  },
   registerText: {
     textAlign: "center",
-    marginTop: 20,
     fontSize: 14,
     color: "#666",
   },
@@ -340,9 +396,11 @@ const styles = StyleSheet.create({
     color: "#d48f27",
     fontWeight: "700",
   },
+  backContainer: {
+    marginTop: 15,
+  },
   backText: {
     textAlign: "center",
-    marginTop: 15,
     fontSize: 14,
     color: "#6b8e4e",
     fontWeight: "600",
