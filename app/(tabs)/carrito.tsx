@@ -12,6 +12,18 @@ import {
 } from "react-native";
 import { useCarrito } from "../context/CarritoContext";
 
+// Componente para los círculos flotantes del fondo
+const FloatingCirclesCart = () => {
+  return (
+    <View style={styles.floatingContainer}>
+      <View style={[styles.floatingCircle, styles.circle1]} />
+      <View style={[styles.floatingCircle, styles.circle2]} />
+      <View style={[styles.floatingCircle, styles.circle3]} />
+      <View style={[styles.floatingCircle, styles.circle4]} />
+    </View>
+  );
+};
+
 export default function Carrito() {
     const router = useRouter();
     const { items, actualizarCantidad, eliminarItem, loading } = useCarrito();
@@ -47,6 +59,7 @@ export default function Carrito() {
                             for (const item of items) {
                                 await eliminarItem(item.idCarrito);
                             }
+                            Alert.alert("✅ Carrito vaciado", "Se han eliminado todos los productos");
                         } catch (error) {
                             Alert.alert("Error", "No se pudo vaciar el carrito");
                         }
@@ -68,6 +81,7 @@ export default function Carrito() {
                     onPress: async () => {
                         try {
                             await eliminarItem(idCarrito);
+                            Alert.alert("✅ Eliminado", "Producto eliminado del carrito");
                         } catch (error) {
                             Alert.alert("Error", "No se pudo eliminar el producto");
                         }
@@ -78,14 +92,14 @@ export default function Carrito() {
     };
 
     const realizarCheckout = () => {
-    if (!items || items.length === 0) {
-        Alert.alert("Carrito vacío", "Agrega productos antes de continuar");
-        return;
-    }
+        if (!items || items.length === 0) {
+            Alert.alert("Carrito vacío", "Agrega productos antes de continuar");
+            return;
+        }
 
-    // Redirigir al CheckoutUnificado
-    router.push("/consumidor/CheckoutUnificado" as any);
-};
+        // Redirigir al CheckoutUnificado
+        router.push("/consumidor/CheckoutUnificado" as any);
+    };
 
     if (loading) {
         return (
@@ -98,10 +112,21 @@ export default function Carrito() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
+            {/* Header con efectos visuales */}
             <View style={styles.header}>
-                <Text style={styles.headerEmoji}>🛒</Text>
-                <Text style={styles.headerTitle}>Mi Carrito</Text>
+                {/* Círculos flotantes de fondo */}
+                <FloatingCirclesCart />
+                
+                <View style={styles.headerTop}>
+                    <Text style={styles.headerIcon}>🛒</Text>
+                </View>
+                
+                {/* Título con efecto especial */}
+                <View style={styles.titleContainer}>
+                    <Text style={styles.headerTitle}>Mi Carrito</Text>
+                    <View style={styles.titleUnderline} />
+                </View>
+                
                 <Text style={styles.headerSubtitle}>
                     Revisa tus productos antes de finalizar
                 </Text>
@@ -110,7 +135,7 @@ export default function Carrito() {
             {items.length === 0 ? (
                 // Carrito vacío
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyEmoji}>🛒</Text>
+                    <Text style={styles.emptyIcon}>🛒</Text>
                     <Text style={styles.emptyTitle}>Tu carrito está vacío</Text>
                     <Text style={styles.emptySubtitle}>
                         ¡Explora nuestros productos y añade tus favoritos!
@@ -264,153 +289,274 @@ export default function Carrito() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F9FBF7",
+        backgroundColor: "#f8f9fa",
     },
+    
+    // Efectos de círculos flotantes
+    floatingContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+    },
+    floatingCircle: {
+        position: 'absolute',
+        borderRadius: 100,
+        opacity: 0.15,
+    },
+    circle1: {
+        width: 120,
+        height: 120,
+        backgroundColor: '#5A8F48', // VERDE PRINCIPAL
+        top: 20,
+        left: 20,
+    },
+    circle2: {
+        width: 80,
+        height: 80,
+        backgroundColor: '#2ECC71', // VERDE CLARO
+        top: 60,
+        right: 30,
+    },
+    circle3: {
+        width: 100,
+        height: 100,
+        backgroundColor: '#F39C12', // AMARILLO/NARANJA
+        bottom: 40,
+        left: 40,
+    },
+    circle4: {
+        width: 60,
+        height: 60,
+        backgroundColor: '#E74C3C', // ROJO
+        bottom: 80,
+        right: 50,
+    },
+    
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#F9FBF7",
+        backgroundColor: "#f8f9fa",
     },
     loadingText: {
         marginTop: 16,
         fontSize: 16,
         color: "#5A8F48",
         fontWeight: "600",
+        fontFamily: "System",
     },
+    
+    // Header mejorado
     header: {
         backgroundColor: "white",
-        paddingTop: 60,
-        paddingBottom: 30,
+        paddingTop: 50,
+        paddingBottom: 25,
         paddingHorizontal: 20,
-        alignItems: "center",
-        borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 5,
+        alignItems: "center",
+        overflow: 'hidden',
+        position: 'relative',
     },
-    headerEmoji: {
-        fontSize: 56,
+    headerTop: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
         marginBottom: 12,
+        zIndex: 1,
+    },
+    headerIcon: {
+        fontSize: 40,
+    },
+    
+    // Título con efectos
+    titleContainer: {
+        alignItems: 'center',
+        marginBottom: 8,
+        zIndex: 1,
     },
     headerTitle: {
-        fontSize: 32,
-        fontWeight: "800",
-        color: "#2D3E2B",
-        marginBottom: 8,
+        fontSize: 28,
+        fontWeight: "700",
+        color: "#2C3E50",
+        textAlign: 'center',
+        fontFamily: "System",
+        letterSpacing: -0.5,
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 3,
+    },
+    titleUnderline: {
+        width: 60,
+        height: 4,
+        backgroundColor: '#5A8F48', // VERDE (color principal)
+        borderRadius: 2,
+        marginTop: 6,
     },
     headerSubtitle: {
-        fontSize: 14,
-        color: "#6B7F69",
+        fontSize: 15,
+        color: "#64748b",
+        marginTop: 4,
         textAlign: "center",
+        fontFamily: "System",
+        zIndex: 1,
     },
+    
     emptyContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
         padding: 40,
     },
-    emptyEmoji: {
+    emptyIcon: {
         fontSize: 80,
         marginBottom: 20,
+        color: "#9CA3AF",
     },
     emptyTitle: {
         fontSize: 24,
         fontWeight: "700",
-        color: "#2D3E2B",
+        color: "#1e293b",
         marginBottom: 12,
+        fontFamily: "System",
     },
     emptySubtitle: {
         fontSize: 16,
-        color: "#6B7F69",
+        color: "#6B7280",
         textAlign: "center",
         marginBottom: 30,
+        fontFamily: "System",
     },
+    
+    // Botón Explorar - COLOR VERDE
     exploreButton: {
         backgroundColor: "#5A8F48",
         paddingVertical: 16,
         paddingHorizontal: 40,
         borderRadius: 12,
+        shadowColor: "#5A8F48",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 4,
     },
     exploreButtonText: {
         color: "white",
         fontSize: 16,
         fontWeight: "700",
+        fontFamily: "System",
     },
+    
     scrollView: {
         flex: 1,
     },
+    
     productosSection: {
         padding: 20,
     },
+    
     productosHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 20,
     },
+    
     productosTitle: {
-        fontSize: 24,
-        fontWeight: "800",
-        color: "#2D3E2B",
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#1e293b",
+        fontFamily: "System",
     },
+    
     productosCount: {
         fontSize: 14,
-        color: "#6B7F69",
+        color: "#64748b",
         marginTop: 4,
+        fontFamily: "System",
     },
+    
+    // Botón Vaciar - COLOR ROJO
     vaciarButton: {
-        backgroundColor: "#FFF0F2",
-        paddingVertical: 8,
+        backgroundColor: "#FEE2E2",
+        paddingVertical: 10,
         paddingHorizontal: 16,
-        borderRadius: 8,
-        borderWidth: 2,
-        borderColor: "#DA3E52",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#E74C3C",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
     },
     vaciarButtonText: {
-        color: "#DA3E52",
+        color: "#E74C3C",
         fontSize: 14,
-        fontWeight: "700",
+        fontWeight: "600",
+        fontFamily: "System",
     },
+    
+    // Tarjeta de producto
     productoCard: {
         flexDirection: "row",
         backgroundColor: "white",
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        borderWidth: 2,
-        borderColor: "#ECF2E3",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: "#f1f5f9",
     },
+    
     productoImagen: {
         width: 100,
         height: 100,
         borderRadius: 12,
     },
+    
     productoInfo: {
         flex: 1,
         marginLeft: 16,
     },
+    
     productoNombre: {
         fontSize: 16,
-        fontWeight: "700",
-        color: "#2D3E2B",
+        fontWeight: "600",
+        color: "#1e293b",
         marginBottom: 6,
+        fontFamily: "System",
     },
+    
+    // Precio - COLOR NARANJA como en explorar
     productoPrecio: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#5A8F48",
+        color: "#FF6B35",
         marginBottom: 12,
+        fontFamily: "System",
     },
+    
     cantidadControls: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
         marginBottom: 8,
     },
+    
+    // Botón cantidad - COLOR VERDE
     cantidadButton: {
         width: 32,
         height: 32,
@@ -418,104 +564,160 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
+        shadowColor: "#5A8F48",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 2,
     },
+    
     cantidadButtonText: {
         color: "white",
         fontSize: 18,
         fontWeight: "700",
+        fontFamily: "System",
     },
+    
     cantidadText: {
         fontSize: 16,
         fontWeight: "700",
         minWidth: 30,
         textAlign: "center",
+        fontFamily: "System",
     },
+    
     productoSubtotal: {
         fontSize: 14,
-        fontWeight: "700",
-        color: "#2D3E2B",
+        fontWeight: "600",
+        color: "#64748b",
+        fontFamily: "System",
     },
+    
+    // Botón eliminar - COLOR ROJO
     eliminarButton: {
         width: 36,
         height: 36,
-        backgroundColor: "#DA3E52",
+        backgroundColor: "#E74C3C",
         borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
+        shadowColor: "#E74C3C",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 2,
     },
+    
     eliminarButtonText: {
         color: "white",
         fontSize: 18,
         fontWeight: "700",
+        fontFamily: "System",
     },
+    
+    // Resumen de compra
     resumenCard: {
         backgroundColor: "white",
-        borderRadius: 20,
+        borderRadius: 16,
         padding: 24,
         margin: 20,
         marginTop: 0,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: "#f1f5f9",
     },
+    
     resumenTitle: {
         fontSize: 20,
-        fontWeight: "800",
-        color: "#2D3E2B",
+        fontWeight: "700",
+        color: "#1e293b",
         marginBottom: 20,
+        fontFamily: "System",
     },
+    
     resumenRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 16,
     },
+    
     resumenLabel: {
         fontSize: 15,
-        color: "#6B7F69",
-        fontWeight: "600",
+        color: "#64748b",
+        fontWeight: "500",
+        fontFamily: "System",
     },
+    
     resumenValue: {
         fontSize: 16,
-        fontWeight: "700",
-        color: "#2D3E2B",
+        fontWeight: "600",
+        color: "#1e293b",
+        fontFamily: "System",
     },
+    
     resumenDivider: {
         height: 1,
-        backgroundColor: "#ECF2E3",
+        backgroundColor: "#e5e7eb",
         marginVertical: 16,
     },
+    
     resumenTotal: {
-        backgroundColor: "#F9FBF7",
+        backgroundColor: "#f8f9fa",
         padding: 16,
         borderRadius: 12,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
     },
+    
     resumenTotalLabel: {
         fontSize: 18,
-        fontWeight: "800",
-        color: "#2D3E2B",
+        fontWeight: "700",
+        color: "#1e293b",
+        fontFamily: "System",
     },
+    
     resumenTotalValue: {
         fontSize: 28,
         fontWeight: "900",
-        color: "#5A8F48",
+        color: "#5A8F48", // VERDE para total
+        fontFamily: "System",
     },
+    
+    // Botón checkout - COLOR VERDE
     checkoutButton: {
         backgroundColor: "#5A8F48",
         paddingVertical: 18,
-        borderRadius: 14,
+        borderRadius: 12,
         alignItems: "center",
         marginBottom: 12,
+        shadowColor: "#5A8F48",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 4,
     },
+    
     checkoutButtonDisabled: {
         backgroundColor: "#A5C9A0",
     },
+    
     checkoutButtonText: {
         color: "white",
         fontSize: 17,
         fontWeight: "800",
+        fontFamily: "System",
     },
+    
+    // Botón seguir comprando - COLOR VERDE con fondo blanco
     seguirButton: {
         backgroundColor: "white",
         paddingVertical: 14,
@@ -525,30 +727,38 @@ const styles = StyleSheet.create({
         borderColor: "#5A8F48",
         marginBottom: 20,
     },
+    
     seguirButtonText: {
         color: "#5A8F48",
         fontSize: 15,
         fontWeight: "700",
+        fontFamily: "System",
     },
+    
+    // Info card
     infoCard: {
-        backgroundColor: "#F9FBF7",
+        backgroundColor: "#f8f9fa",
         padding: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: "#ECF2E3",
+        borderColor: "#e5e7eb",
     },
+    
     infoRow: {
         flexDirection: "row",
         alignItems: "center",
         marginBottom: 8,
     },
+    
     infoIcon: {
         fontSize: 14,
         marginRight: 8,
         color: "#5A8F48",
     },
+    
     infoText: {
         fontSize: 13,
-        color: "#6B7F69",
+        color: "#64748b",
+        fontFamily: "System",
     },
 });
