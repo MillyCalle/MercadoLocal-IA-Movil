@@ -12,13 +12,20 @@ import {
 } from "react-native";
 import { useCarrito } from "../context/CarritoContext";
 
-// Componente para los círculos flotantes del fondo
+// Componente para los círculos flotantes del fondo - CON LOS MISMOS COLORES EXACTOS QUE EXPLORAR
 const FloatingCirclesCart = () => {
   return (
     <View style={styles.floatingContainer}>
+      {/* MISMO COLOR NARANJA PRINCIPAL - igual que circle1 de explorar */}
       <View style={[styles.floatingCircle, styles.circle1]} />
+      
+      {/* MISMO COLOR AZUL - igual que circle2 de explorar */}
       <View style={[styles.floatingCircle, styles.circle2]} />
+      
+      {/* MISMO COLOR MORADO - igual que circle3 de explorar */}
       <View style={[styles.floatingCircle, styles.circle3]} />
+      
+      {/* MISMO COLOR VERDE - igual que circle4 de explorar */}
       <View style={[styles.floatingCircle, styles.circle4]} />
     </View>
   );
@@ -104,7 +111,7 @@ export default function Carrito() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#5A8F48" />
+                <ActivityIndicator size="large" color="#FF6B35" />
                 <Text style={styles.loadingText}>Cargando carrito...</Text>
             </View>
         );
@@ -114,7 +121,7 @@ export default function Carrito() {
         <View style={styles.container}>
             {/* Header con efectos visuales */}
             <View style={styles.header}>
-                {/* Círculos flotantes de fondo */}
+                {/* Círculos flotantes de fondo - MISMO COLORES EXACTOS QUE EXPLORAR */}
                 <FloatingCirclesCart />
                 
                 <View style={styles.headerTop}>
@@ -292,7 +299,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f8f9fa",
     },
     
-    // Efectos de círculos flotantes
+    // Efectos de círculos flotantes - COLORES EXACTAMENTE IGUAL QUE EXPLORAR
     floatingContainer: {
         position: 'absolute',
         top: 0,
@@ -306,31 +313,35 @@ const styles = StyleSheet.create({
         borderRadius: 100,
         opacity: 0.15,
     },
+    // MISMO COLOR NARANJA QUE circle1 DE EXPLORAR: #FF6B35
     circle1: {
         width: 120,
         height: 120,
-        backgroundColor: '#5A8F48', // VERDE PRINCIPAL
+        backgroundColor: '#FF6B35',
         top: 20,
         left: 20,
     },
+    // MISMO COLOR AZUL QUE circle2 DE EXPLORAR: #3498DB
     circle2: {
         width: 80,
         height: 80,
-        backgroundColor: '#2ECC71', // VERDE CLARO
+        backgroundColor: '#3498DB',
         top: 60,
         right: 30,
     },
+    // MISMO COLOR MORADO QUE circle3 DE EXPLORAR: #9B59B6
     circle3: {
         width: 100,
         height: 100,
-        backgroundColor: '#F39C12', // AMARILLO/NARANJA
+        backgroundColor: '#9B59B6',
         bottom: 40,
         left: 40,
     },
+    // MISMO COLOR VERDE QUE circle4 DE EXPLORAR: #2ECC71
     circle4: {
         width: 60,
         height: 60,
-        backgroundColor: '#E74C3C', // ROJO
+        backgroundColor: '#2ECC71',
         bottom: 80,
         right: 50,
     },
@@ -344,7 +355,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 16,
         fontSize: 16,
-        color: "#5A8F48",
+        color: "#FF6B35",
         fontWeight: "600",
         fontFamily: "System",
     },
@@ -397,7 +408,7 @@ const styles = StyleSheet.create({
     titleUnderline: {
         width: 60,
         height: 4,
-        backgroundColor: '#5A8F48', // VERDE (color principal)
+        backgroundColor: '#FF6B35', // NARANJA (color principal)
         borderRadius: 2,
         marginTop: 6,
     },
@@ -436,13 +447,13 @@ const styles = StyleSheet.create({
         fontFamily: "System",
     },
     
-    // Botón Explorar - COLOR VERDE
+    // Botón Explorar - COLOR NARANJA
     exploreButton: {
-        backgroundColor: "#5A8F48",
+        backgroundColor: "#FF6B35",
         paddingVertical: 16,
         paddingHorizontal: 40,
         borderRadius: 12,
-        shadowColor: "#5A8F48",
+        shadowColor: "#FF6B35",
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
@@ -484,14 +495,14 @@ const styles = StyleSheet.create({
         fontFamily: "System",
     },
     
-    // Botón Vaciar - COLOR ROJO
+    // Botón Vaciar - COLOR NARANJA con variación
     vaciarButton: {
-        backgroundColor: "#FEE2E2",
+        backgroundColor: "#FFF2E8",
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: "#E74C3C",
+        borderColor: "#FF6B35",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -499,7 +510,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     vaciarButtonText: {
-        color: "#E74C3C",
+        color: "#FF6B35",
         fontSize: 14,
         fontWeight: "600",
         fontFamily: "System",
@@ -556,15 +567,15 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     
-    // Botón cantidad - COLOR VERDE
+    // Botón cantidad - COLOR NARANJA
     cantidadButton: {
         width: 32,
         height: 32,
-        backgroundColor: "#5A8F48",
+        backgroundColor: "#FF6B35",
         borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
-        shadowColor: "#5A8F48",
+        shadowColor: "#FF6B35",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 3,
@@ -593,15 +604,15 @@ const styles = StyleSheet.create({
         fontFamily: "System",
     },
     
-    // Botón eliminar - COLOR ROJO
+    // Botón eliminar - COLOR NARANJA con tono más oscuro
     eliminarButton: {
         width: 36,
         height: 36,
-        backgroundColor: "#E74C3C",
+        backgroundColor: "#E65A2B",
         borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
-        shadowColor: "#E74C3C",
+        shadowColor: "#E65A2B",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 3,
@@ -688,18 +699,18 @@ const styles = StyleSheet.create({
     resumenTotalValue: {
         fontSize: 28,
         fontWeight: "900",
-        color: "#5A8F48", // VERDE para total
+        color: "#FF6B35", // NARANJA para total
         fontFamily: "System",
     },
     
-    // Botón checkout - COLOR VERDE
+    // Botón checkout - COLOR NARANJA
     checkoutButton: {
-        backgroundColor: "#5A8F48",
+        backgroundColor: "#FF6B35",
         paddingVertical: 18,
         borderRadius: 12,
         alignItems: "center",
         marginBottom: 12,
-        shadowColor: "#5A8F48",
+        shadowColor: "#FF6B35",
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
@@ -707,7 +718,7 @@ const styles = StyleSheet.create({
     },
     
     checkoutButtonDisabled: {
-        backgroundColor: "#A5C9A0",
+        backgroundColor: "#FFB28D",
     },
     
     checkoutButtonText: {
@@ -717,19 +728,19 @@ const styles = StyleSheet.create({
         fontFamily: "System",
     },
     
-    // Botón seguir comprando - COLOR VERDE con fondo blanco
+    // Botón seguir comprando - COLOR NARANJA con fondo blanco
     seguirButton: {
         backgroundColor: "white",
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: "center",
         borderWidth: 2,
-        borderColor: "#5A8F48",
+        borderColor: "#FF6B35",
         marginBottom: 20,
     },
     
     seguirButtonText: {
-        color: "#5A8F48",
+        color: "#FF6B35",
         fontSize: 15,
         fontWeight: "700",
         fontFamily: "System",
@@ -753,7 +764,7 @@ const styles = StyleSheet.create({
     infoIcon: {
         fontSize: 14,
         marginRight: 8,
-        color: "#5A8F48",
+        color: "#FF6B35",
     },
     
     infoText: {
