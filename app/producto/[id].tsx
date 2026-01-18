@@ -206,7 +206,7 @@ export default function ProductoDetalle() {
                errorMessage.includes("already") ||
                errorMessage.includes("duplicate"))) {
             console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
-           
+            // Solo log, NO mostramos alerta
           } else {
             console.warn("Error del servidor al agregar favorito:", errorMessage);
             

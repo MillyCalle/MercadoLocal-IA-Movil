@@ -1,9 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -17,6 +20,518 @@ import {
   View,
 } from "react-native";
 import { API_CONFIG, getCurrentNetwork } from "../config";
+
+const { width, height } = Dimensions.get("window");
+
+// PALETA DE COLORES ACTUALIZADA
+const COLORS = {
+  primary: "#FF6B35",
+  secondary: "#9B59B6",
+  accent: "#3498DB",
+  success: "#2ECC71",
+  background: "#F8F9FA",
+  surface: "#FFFFFF",
+  text: "#2C3E50",
+  lightText: "#64748B",
+  placeholder: "#94A3B8",
+  overlay: "rgba(255, 255, 255, 0.95)",
+  glow: "rgba(255, 107, 53, 0.25)",
+};
+
+// REEMPLAZA ESTAS CONSTANTES CON TU TIPOGRAFÍA
+const TYPOGRAPHY = {
+  regular: Platform.OS === 'ios' ? "System" : "Roboto",
+  medium: Platform.OS === 'ios' ? "System" : "Roboto-Medium",
+  bold: Platform.OS === 'ios' ? "System" : "Roboto-Bold",
+  extraBold: Platform.OS === 'ios' ? "System" : "Roboto-Black",
+};
+
+// Componentes actualizados
+const BackgroundEffects = () => {
+  const floatAnim1 = useRef(new Animated.Value(0)).current;
+  const floatAnim2 = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const createFloatAnimation = (animValue: Animated.Value, duration: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(animValue, {
+            toValue: 1,
+            duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+          Animated.timing(animValue, {
+            toValue: 0,
+            duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    };
+
+    createFloatAnimation(floatAnim1, 8000).start();
+    createFloatAnimation(floatAnim2, 6000).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.5,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.2,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const translateY1 = floatAnim1.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 20],
+  });
+
+  const translateX2 = floatAnim2.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -15],
+  });
+
+  return (
+    <View style={styles.backgroundContainer}>
+      <View style={styles.gradientMain} />
+      
+      <Animated.View 
+        style={[
+          styles.floatingCircle1,
+          { 
+            transform: [{ translateY: translateY1 }],
+            opacity: pulseAnim
+          }
+        ]} 
+      />
+      <Animated.View 
+        style={[
+          styles.floatingCircle2,
+          { 
+            transform: [{ translateX: translateX2 }],
+            opacity: pulseAnim.interpolate({
+              inputRange: [0.2, 0.5],
+              outputRange: [0.1, 0.15]
+            })
+          }
+        ]} 
+      />
+    </View>
+  );
+};
+
+const LogoWithEffects = () => {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const translateY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -4],
+  });
+
+  return (
+    <View style={styles.logoContainer}>
+      <Animated.View style={[
+        styles.logoWrapper,
+        {
+          transform: [{ translateY }]
+        }
+      ]}>
+        <View style={styles.logoBackground} />
+        <Image
+          source={require("../assets/images/Logo2.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
+    </View>
+  );
+};
+
+const AnimatedInput = ({ 
+  placeholder, 
+  value, 
+  onChangeText, 
+  secureTextEntry = false,
+  keyboardType = "default",
+  icon,
+  onFocus,
+  onBlur,
+  editable = true,
+  multiline = false,
+  numberOfLines = 1,
+  containerStyle = {}
+}: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const focusAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    onBlur?.();
+  };
+
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused]);
+
+  const borderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255, 107, 53, 0.1)", COLORS.primary],
+  });
+
+  return (
+    <Animated.View style={[
+      styles.inputWrapper,
+      containerStyle,
+      {
+        borderColor,
+      }
+    ]}>
+      {icon && (
+        <View style={styles.inputIconContainer}>
+          <Text style={styles.inputIcon}>{icon}</Text>
+        </View>
+      )}
+      <TextInput
+        style={[
+          styles.input,
+          multiline && styles.textareaInput,
+          { height: multiline ? Math.max(numberOfLines * 24, 56) : 48 }
+        ]}
+        placeholder={placeholder}
+        placeholderTextColor={COLORS.placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize="none"
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        editable={editable}
+        multiline={multiline}
+        numberOfLines={multiline ? numberOfLines : 1}
+        textAlignVertical={multiline ? "top" : "center"}
+      />
+      {isFocused && (
+        <Animated.View style={[
+          styles.inputFocusIndicator,
+          { 
+            opacity: focusAnim,
+            backgroundColor: COLORS.primary 
+          }
+        ]} />
+      )}
+    </Animated.View>
+  );
+};
+
+const AnimatedButton = ({ 
+  title, 
+  onPress, 
+  loading = false, 
+  variant = "primary",
+  icon,
+  subtitle,
+  style = {},
+  disabled = false
+}: any) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (!disabled && !loading) {
+      Animated.spring(scaleAnim, {
+        toValue: 0.97,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled && !loading) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const buttonStyle = variant === "primary" ? styles.primaryButton : styles.secondaryButton;
+  const textStyle = variant === "primary" ? styles.primaryButtonText : styles.secondaryButtonText;
+
+  return (
+    <TouchableOpacity
+      onPress={!disabled && !loading ? onPress : undefined}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled || loading}
+      activeOpacity={0.9}
+      style={[styles.buttonTouchable, style]}
+    >
+      <Animated.View style={[
+        buttonStyle,
+        { transform: [{ scale: scaleAnim }] },
+        (loading || disabled) && styles.buttonDisabled
+      ]}>
+        <View style={styles.buttonContent}>
+          {icon && <Text style={[styles.buttonIcon, { color: variant === "primary" ? "white" : COLORS.primary }]}>{icon}</Text>}
+          <View style={styles.buttonTextContainer}>
+            <Text style={textStyle}>{title}</Text>
+            {subtitle && (
+              <Text style={[
+                styles.buttonSubtitle,
+                { color: variant === "primary" ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 107, 53, 0.7)" }
+              ]}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {!loading && !disabled && (
+            <Text style={[
+              styles.buttonArrow,
+              { color: variant === "primary" ? "white" : COLORS.primary }
+            ]}>
+              →
+            </Text>
+          )}
+        </View>
+        
+        {loading && (
+          <ActivityIndicator 
+            color={variant === "primary" ? "white" : COLORS.primary} 
+            size="small" 
+            style={styles.buttonLoader}
+          />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const DatePickerModal = ({ visible, onClose, onConfirm, selectedYear, setSelectedYear, selectedMonth, setSelectedMonth, selectedDay, setSelectedDay }: any) => {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
+  const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>📅 Fecha de Nacimiento</Text>
+                <TouchableOpacity 
+                  onPress={onClose}
+                >
+                  <Text style={styles.closeButton}>×</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.dateSelectors}>
+                <View style={styles.dateSelector}>
+                  <Text style={styles.dateSelectorLabel}>Año</Text>
+                  <View style={styles.dateSelectorBackground}>
+                    <ScrollView 
+                      style={styles.dateScrollView}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {years.map((year) => (
+                        <TouchableOpacity
+                          key={year}
+                          style={[
+                            styles.dateOption,
+                            selectedYear === year && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedYear(year)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedYear === year && styles.dateOptionTextSelected
+                          ]}>
+                            {year}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+                
+                <View style={styles.dateSelector}>
+                  <Text style={styles.dateSelectorLabel}>Mes</Text>
+                  <View style={styles.dateSelectorBackground}>
+                    <ScrollView 
+                      style={styles.dateScrollView}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {months.map((month) => (
+                        <TouchableOpacity
+                          key={month}
+                          style={[
+                            styles.dateOption,
+                            selectedMonth === month && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedMonth(month)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedMonth === month && styles.dateOptionTextSelected
+                          ]}>
+                            {month}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+                
+                <View style={styles.dateSelector}>
+                  <Text style={styles.dateSelectorLabel}>Día</Text>
+                  <View style={styles.dateSelectorBackground}>
+                    <ScrollView 
+                      style={styles.dateScrollView}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {days.map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            styles.dateOption,
+                            selectedDay === day && styles.dateOptionSelected
+                          ]}
+                          onPress={() => setSelectedDay(day)}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            selectedDay === day && styles.dateOptionTextSelected
+                          ]}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+              
+              {(selectedYear || selectedMonth || selectedDay) && (
+                <View style={styles.selectedDatePreview}>
+                  <Text style={styles.selectedDateLabel}>Fecha seleccionada:</Text>
+                  <Text style={styles.selectedDateText}>
+                    {selectedYear || "----"}-{selectedMonth || "--"}-{selectedDay || "--"}
+                  </Text>
+                </View>
+              )}
+              
+              <AnimatedButton
+                title="Confirmar Fecha"
+                onPress={onConfirm}
+                variant="primary"
+                icon="✅"
+                style={styles.confirmDateButton}
+                loading={false}
+                disabled={!selectedYear || !selectedMonth || !selectedDay}
+              />
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+};
+
+// Componente mejorado de RoleSelector SIN asteriscos
+const AnimatedRoleSelector = ({ selectedRole, onSelect, loading }: any) => {
+  return (
+    <View style={styles.roleSelectorContainer}>
+      <Text style={styles.roleSelectorLabel}>💼 ¿Cómo te unirás?</Text>
+      <View style={styles.roleButtons}>
+        <TouchableOpacity
+          onPress={() => onSelect(3)}
+          disabled={loading}
+          activeOpacity={0.8}
+          style={styles.roleButtonTouchable}
+        >
+          <View style={[
+            styles.roleButton,
+            selectedRole === 3 && styles.roleButtonActive
+          ]}>
+            <Text style={styles.roleIcon}>🛒</Text>
+            <Text style={[styles.roleText, selectedRole === 3 && styles.roleTextActive]}>
+              Consumidor
+            </Text>
+            <Text style={styles.roleDesc}>Compra productos</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => onSelect(2)}
+          disabled={loading}
+          activeOpacity={0.8}
+          style={styles.roleButtonTouchable}
+        >
+          <View style={[
+            styles.roleButton,
+            selectedRole === 2 && styles.roleButtonActive
+          ]}>
+            <Text style={styles.roleIcon}>🏪</Text>
+            <Text style={[styles.roleText, selectedRole === 2 && styles.roleTextActive]}>
+              Vendedor
+            </Text>
+            <Text style={styles.roleDesc}>Vende productos</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 interface RegisterResponse {
   token: string;
@@ -81,29 +596,29 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!form.nombre || !form.apellido || !form.correo || !form.contrasena || !form.fechaNacimiento) {
-      Alert.alert("Error", "Completa todos los campos obligatorios");
+      Alert.alert("Campos Requeridos", "Por favor completa todos los campos obligatorios");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.correo)) {
-      Alert.alert("Error", "Correo inválido");
+      Alert.alert("Correo Inválido", "Por favor ingresa un correo electrónico válido");
       return;
     }
 
     if (form.contrasena.length < 6) {
-      Alert.alert("Error", "Contraseña debe tener 6+ caracteres");
+      Alert.alert("Contraseña Débil", "La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
     if (form.idRol === 3) {
       if (!form.cedula || !form.direccion || !form.telefono) {
-        Alert.alert("Error", "Completa campos de consumidor");
+        Alert.alert("Datos Incompletos", "Por favor completa todos los campos del consumidor");
         return;
       }
     } else if (form.idRol === 2) {
       if (!form.nombreEmpresa || !form.ruc || !form.direccionEmpresa || !form.telefonoEmpresa) {
-        Alert.alert("Error", "Completa campos de vendedor");
+        Alert.alert("Datos Incompletos", "Por favor completa todos los campos del vendedor");
         return;
       }
     }
@@ -111,9 +626,6 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      console.log("🌐 Red:", getCurrentNetwork().name);
-      console.log("🔄 Registro:", `${API_CONFIG.BASE_URL}/auth/register`);
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
       
@@ -127,13 +639,10 @@ export default function RegisterScreen() {
       });
 
       clearTimeout(timeoutId);
-      console.log("📡 Status:", response.status);
 
       const data: RegisterResponse = await response.json();
 
       if (response.ok) {
-        console.log("✅ Registro exitoso:", data);
-
         if (data.token) await AsyncStorage.setItem("authToken", data.token);
         if (data.token) await AsyncStorage.setItem("token", data.token);
         if (data.rol) await AsyncStorage.setItem("rol", data.rol);
@@ -157,10 +666,7 @@ export default function RegisterScreen() {
           [
             {
               text: "Continuar",
-              onPress: () => {
-                console.log("📱 → Redirigiendo a tabs después del registro");
-                router.replace("/(tabs)");
-              }
+              onPress: () => router.replace("/(tabs)")
             }
           ]
         );
@@ -170,19 +676,17 @@ export default function RegisterScreen() {
       }
 
     } catch (error: any) {
-      console.error("❌ Error:", error);
-      
       let errorMessage = "Error desconocido";
       
       if (error.name === "AbortError") {
-        errorMessage = "Tiempo agotado";
+        errorMessage = "Tiempo agotado. Verifica tu conexión.";
       } else if (error.message.includes("Network")) {
-        errorMessage = `No conecta.\n\nRed: ${getCurrentNetwork().name}`;
+        errorMessage = `No se pudo conectar.\n\nVerifica:\n• WiFi conectado\n• Backend corriendo`;
       } else if (error.message) {
         errorMessage = error.message;
       }
       
-      Alert.alert("Error", errorMessage, [{ text: "OK" }]);
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -200,10 +704,8 @@ export default function RegisterScreen() {
       await AsyncStorage.removeItem("idVendedor");
       await AsyncStorage.removeItem("idConsumidor");
       
-      console.log("👤 Usuario invitado registrado");
       router.replace("/(tabs)/explorar");
     } catch (error) {
-      console.error("Error en login invitado:", error);
       Alert.alert("Error", "No se pudo iniciar como invitado");
     } finally {
       setLoading(false);
@@ -218,11 +720,13 @@ export default function RegisterScreen() {
     router.replace("/WelcomeScreen");
   };
 
-  // Generar arrays para años, meses y días
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
-  const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const mostrarConfig = () => {
+    const net = getCurrentNetwork();
+    Alert.alert(
+      "Configuración",
+      `Red: ${net.name}\nIP: ${net.ip}\nPuerto: ${net.port}`
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -232,7 +736,12 @@ export default function RegisterScreen() {
       <ScrollView 
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
+        <BackgroundEffects />
+        
+        {/* Header FIXED - LOGO CENTRADO */}
         <View style={styles.header}>
           <TouchableOpacity 
             onPress={handleBackToWelcome}
@@ -241,367 +750,272 @@ export default function RegisterScreen() {
           >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../assets/images/Logo2.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+          <View style={styles.logoCenterContainer}>
+            <LogoWithEffects />
           </View>
+          <View style={styles.headerSpacer} />
         </View>
 
-        <Text style={styles.title}>Crear Cuenta</Text>
-        <Text style={styles.subtitle}>Únete a nuestra comunidad</Text>
-
-        <View style={styles.roleSelector}>
-          <Text style={styles.roleLabel}>¿Cómo te unirás? *</Text>
-          <View style={styles.roleButtons}>
-            <TouchableOpacity
-              style={[styles.roleButton, form.idRol === 3 && styles.roleButtonActive]}
-              onPress={() => handleRoleChange(3)}
-              disabled={loading}
-            >
-              <Text style={styles.roleIcon}>🛒</Text>
-              <Text style={[styles.roleText, form.idRol === 3 && styles.roleTextActive]}>
-                Consumidor
-              </Text>
-              <Text style={styles.roleDesc}>Compra productos</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.roleButton, form.idRol === 2 && styles.roleButtonActive]}
-              onPress={() => handleRoleChange(2)}
-              disabled={loading}
-            >
-              <Text style={styles.roleIcon}>🏪</Text>
-              <Text style={[styles.roleText, form.idRol === 2 && styles.roleTextActive]}>
-                Vendedor
-              </Text>
-              <Text style={styles.roleDesc}>Vende productos</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Títulos principales */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.mainTitle}>¡Crea tu Cuenta!</Text>
+          <Text style={styles.subTitle}>Únete a nuestra comunidad</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Información Personal</Text>
+        {/* Formulario */}
+        <View style={styles.formContainer}>
+          <View style={styles.formCard}>
+            <View style={styles.cardHeader} />
+            
+            <AnimatedRoleSelector 
+              selectedRole={form.idRol}
+              onSelect={handleRoleChange}
+              loading={loading}
+            />
 
-        <View style={styles.inputRow}>
-          <View style={styles.inputHalf}>
-            <Text style={styles.label}>Nombre *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Juan"
-              placeholderTextColor="#aaa"
-              value={form.nombre}
-              onChangeText={(v) => handleChange("nombre", v)}
-              editable={!loading}
-            />
-          </View>
+            {/* Información Personal */}
+            <Text style={styles.sectionTitle}>👤 Información Personal</Text>
+            
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Text style={styles.formLabel}>Nombre</Text>
+                <AnimatedInput
+                  placeholder="Juan"
+                  value={form.nombre}
+                  onChangeText={(v: string) => handleChange("nombre", v)}
+                  icon="👤"
+                  editable={!loading}
+                />
+              </View>
 
-          <View style={styles.inputHalf}>
-            <Text style={styles.label}>Apellido *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Pérez"
-              placeholderTextColor="#aaa"
-              value={form.apellido}
-              onChangeText={(v) => handleChange("apellido", v)}
-              editable={!loading}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.label}>Correo electrónico *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="tu@correo.com"
-          placeholderTextColor="#aaa"
-          value={form.correo}
-          onChangeText={(v) => handleChange("correo", v)}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={!loading}
-        />
-
-        <Text style={styles.label}>Contraseña *</Text>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={[styles.input, { paddingRight: 50 }]}
-            placeholder="••••••••"
-            placeholderTextColor="#aaa"
-            value={form.contrasena}
-            onChangeText={(v) => handleChange("contrasena", v)}
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            editable={!loading}
-          />
-          <TouchableOpacity
-            style={styles.eyeIcon}
-            onPress={() => setShowPassword(!showPassword)}
-            disabled={loading}
-          >
-            <Text style={styles.eyeText}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.label}>Fecha de nacimiento *</Text>
-        
-        <TouchableOpacity
-          style={styles.dateInputContainer}
-          onPress={handleOpenDatePicker}
-          disabled={loading}
-        >
-          <View style={styles.dateInput}>
-            <Text style={[
-              styles.dateText, 
-              !form.fechaNacimiento && styles.placeholderText
-            ]}>
-              {form.fechaNacimiento ? form.fechaNacimiento : "YYYY-MM-DD"}
-            </Text>
-            <Text style={styles.calendarIcon}>📅</Text>
-          </View>
-        </TouchableOpacity>
-
-        {form.idRol === 3 && (
-          <>
-            <Text style={styles.sectionTitle}>Datos del Consumidor</Text>
-            <Text style={styles.label}>Cédula *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0102030405"
-              placeholderTextColor="#aaa"
-              value={form.cedula}
-              onChangeText={(v) => handleChange("cedula", v)}
-              keyboardType="numeric"
-              editable={!loading}
-            />
-            <Text style={styles.label}>Dirección *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Tu dirección completa"
-              placeholderTextColor="#aaa"
-              value={form.direccion}
-              onChangeText={(v) => handleChange("direccion", v)}
-              editable={!loading}
-            />
-            <Text style={styles.label}>Teléfono *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0999999999"
-              placeholderTextColor="#aaa"
-              value={form.telefono}
-              onChangeText={(v) => handleChange("telefono", v)}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
-          </>
-        )}
-
-        {form.idRol === 2 && (
-          <>
-            <Text style={styles.sectionTitle}>Datos del Negocio</Text>
-            <Text style={styles.label}>Nombre del negocio *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Frutas Don Pepe"
-              placeholderTextColor="#aaa"
-              value={form.nombreEmpresa}
-              onChangeText={(v) => handleChange("nombreEmpresa", v)}
-              editable={!loading}
-            />
-            <Text style={styles.label}>RUC *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="1102345678001"
-              placeholderTextColor="#aaa"
-              value={form.ruc}
-              onChangeText={(v) => handleChange("ruc", v)}
-              keyboardType="numeric"
-              editable={!loading}
-            />
-            <Text style={styles.label}>Dirección del negocio *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Local 12, Mercado Central"
-              placeholderTextColor="#aaa"
-              value={form.direccionEmpresa}
-              onChangeText={(v) => handleChange("direccionEmpresa", v)}
-              editable={!loading}
-            />
-            <Text style={styles.label}>Teléfono del negocio *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0987654321"
-              placeholderTextColor="#aaa"
-              value={form.telefonoEmpresa}
-              onChangeText={(v) => handleChange("telefonoEmpresa", v)}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
-            <Text style={styles.label}>Descripción (opcional)</Text>
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              placeholder="Describe tu negocio, productos que ofreces, etc..."
-              placeholderTextColor="#aaa"
-              value={form.descripcion}
-              onChangeText={(v) => handleChange("descripcion", v)}
-              multiline
-              numberOfLines={4}
-              editable={!loading}
-            />
-          </>
-        )}
-
-        <TouchableOpacity
-          style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color="white" size="small" />
-              <Text style={styles.registerButtonText}>Creando cuenta...</Text>
+              <View style={styles.inputHalf}>
+                <Text style={styles.formLabel}>Apellido</Text>
+                <AnimatedInput
+                  placeholder="Pérez"
+                  value={form.apellido}
+                  onChangeText={(v: string) => handleChange("apellido", v)}
+                  icon="📝"
+                  editable={!loading}
+                />
+              </View>
             </View>
-          ) : (
-            <Text style={styles.registerButtonText}>Crear cuenta</Text>
-          )}
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.guestButton}
-          onPress={handleGuestLogin}
-          disabled={loading}
-        >
-          <Text style={styles.guestButtonText}>
-            Continuar como invitado
-          </Text>
-        </TouchableOpacity>
+            <Text style={styles.formLabel}>Correo electrónico</Text>
+            <AnimatedInput
+              placeholder="tu@correo.com"
+              value={form.correo}
+              onChangeText={(v: string) => handleChange("correo", v)}
+              keyboardType="email-address"
+              icon="📧"
+              editable={!loading}
+            />
 
-        <TouchableOpacity 
-          onPress={handleLoginRedirect}
-          disabled={loading}
-          style={styles.loginLinkContainer}
-        >
-          <Text style={styles.loginText}>
-            ¿Ya tienes cuenta?{" "}
-            <Text style={styles.loginLink}>Inicia sesión</Text>
-          </Text>
-        </TouchableOpacity>
+            <Text style={styles.formLabel}>Contraseña</Text>
+            <View style={styles.passwordContainer}>
+              <AnimatedInput
+                placeholder="••••••••"
+                value={form.contrasena}
+                onChangeText={(v: string) => handleChange("contrasena", v)}
+                secureTextEntry={!showPassword}
+                icon="🔒"
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+                disabled={loading}
+              >
+                <Text style={styles.eyeText}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
+              </TouchableOpacity>
+            </View>
 
-        <TouchableOpacity 
-          onPress={handleBackToWelcome}
-          disabled={loading}
-          style={styles.backToHomeContainer}
-        >
-          <Text style={styles.backToHomeText}>← Volver a Inicio</Text>
-        </TouchableOpacity>
+            <Text style={styles.formLabel}>Fecha de nacimiento</Text>
+            <TouchableOpacity
+              onPress={handleOpenDatePicker}
+              disabled={loading}
+            >
+              <AnimatedInput
+                placeholder="YYYY-MM-DD"
+                value={form.fechaNacimiento}
+                onChangeText={() => {}}
+                icon="📅"
+                editable={false}
+                containerStyle={styles.dateInputContainer}
+              />
+            </TouchableOpacity>
 
-        <View style={{ height: 30 }} />
+            {/* Campos según rol */}
+            {form.idRol === 3 && (
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionTitle}>🛒 Datos del Consumidor</Text>
+                
+                <Text style={styles.formLabel}>Cédula</Text>
+                <AnimatedInput
+                  placeholder="0102030405"
+                  value={form.cedula}
+                  onChangeText={(v: string) => handleChange("cedula", v)}
+                  keyboardType="numeric"
+                  icon="🆔"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>Dirección</Text>
+                <AnimatedInput
+                  placeholder="Tu dirección"
+                  value={form.direccion}
+                  onChangeText={(v: string) => handleChange("direccion", v)}
+                  icon="📍"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>Teléfono</Text>
+                <AnimatedInput
+                  placeholder="0999999999"
+                  value={form.telefono}
+                  onChangeText={(v: string) => handleChange("telefono", v)}
+                  keyboardType="phone-pad"
+                  icon="📱"
+                  editable={!loading}
+                />
+              </>
+            )}
+
+            {form.idRol === 2 && (
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionTitle}>🏪 Datos del Negocio</Text>
+                
+                <Text style={styles.formLabel}>Nombre del negocio</Text>
+                <AnimatedInput
+                  placeholder="Frutas Don Pepe"
+                  value={form.nombreEmpresa}
+                  onChangeText={(v: string) => handleChange("nombreEmpresa", v)}
+                  icon="🏬"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>RUC</Text>
+                <AnimatedInput
+                  placeholder="1102345678001"
+                  value={form.ruc}
+                  onChangeText={(v: string) => handleChange("ruc", v)}
+                  keyboardType="numeric"
+                  icon="📋"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>Dirección</Text>
+                <AnimatedInput
+                  placeholder="Local 12, Mercado Central"
+                  value={form.direccionEmpresa}
+                  onChangeText={(v: string) => handleChange("direccionEmpresa", v)}
+                  icon="🗺️"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>Teléfono</Text>
+                <AnimatedInput
+                  placeholder="0987654321"
+                  value={form.telefonoEmpresa}
+                  onChangeText={(v: string) => handleChange("telefonoEmpresa", v)}
+                  keyboardType="phone-pad"
+                  icon="📞"
+                  editable={!loading}
+                />
+                
+                <Text style={styles.formLabel}>Descripción (opcional)</Text>
+                <AnimatedInput
+                  placeholder="Describe tu negocio..."
+                  value={form.descripcion}
+                  onChangeText={(v: string) => handleChange("descripcion", v)}
+                  icon="📝"
+                  multiline={true}
+                  numberOfLines={3}
+                  editable={!loading}
+                  containerStyle={styles.textareaContainer}
+                />
+              </>
+            )}
+
+            {/* Botón de registro */}
+            <AnimatedButton
+              title="Crear Cuenta"
+              onPress={handleRegister}
+              loading={loading}
+              variant="primary"
+              icon="🚀"
+              subtitle="Únete a nuestra comunidad"
+              style={styles.registerButton}
+            />
+
+            {/* Divisor */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>o</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Botón de invitado */}
+            <AnimatedButton
+              title="Continuar como Invitado"
+              onPress={handleGuestLogin}
+              loading={loading}
+              variant="secondary"
+              icon="👤"
+              subtitle="Explora sin cuenta"
+            />
+
+            {/* Enlaces */}
+            <View style={styles.linksContainer}>
+              <TouchableOpacity 
+                onPress={handleLoginRedirect}
+                disabled={loading}
+                style={styles.linkButton}
+              >
+                <Text style={styles.linkText}>
+                  ¿Ya tienes cuenta?{" "}
+                  <Text style={styles.linkHighlight}>Inicia sesión</Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={handleBackToWelcome}
+                disabled={loading}
+                style={styles.linkButton}
+              >
+                <Text style={styles.backLink}>
+                  ← Volver al inicio
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Info de red */}
+        <TouchableOpacity style={styles.networkInfo} onPress={mostrarConfig}>
+          <View style={styles.networkIconContainer}>
+            <Text style={styles.networkIcon}>🌐</Text>
+            <View style={styles.networkStatus} />
+          </View>
+          <View style={styles.networkTextContainer}>
+            <Text style={styles.networkName}>{getCurrentNetwork().name}</Text>
+            <Text style={styles.networkUrl}>{API_CONFIG.BASE_URL}</Text>
+          </View>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* MODAL PERSONALIZADO PARA FECHA */}
-      <Modal
-        animationType="slide"
-        transparent={true}
+      <DatePickerModal
         visible={showDatePicker}
-        onRequestClose={handleCloseDatePicker}
-      >
-        <TouchableWithoutFeedback onPress={handleCloseDatePicker}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.datePickerContainer}>
-                <View style={styles.datePickerHeader}>
-                  <Text style={styles.datePickerTitle}>Selecciona tu fecha de nacimiento</Text>
-                  <TouchableOpacity onPress={handleCloseDatePicker}>
-                    <Text style={styles.closeButton}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.dateSelectors}>
-                  <View style={styles.dateSelector}>
-                    <Text style={styles.dateSelectorLabel}>Año</Text>
-                    <ScrollView style={styles.dateScrollView}>
-                      {years.map((year) => (
-                        <TouchableOpacity
-                          key={year}
-                          style={[
-                            styles.dateOption,
-                            selectedYear === year && styles.dateOptionSelected
-                          ]}
-                          onPress={() => setSelectedYear(year)}
-                        >
-                          <Text style={[
-                            styles.dateOptionText,
-                            selectedYear === year && styles.dateOptionTextSelected
-                          ]}>
-                            {year}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  
-                  <View style={styles.dateSelector}>
-                    <Text style={styles.dateSelectorLabel}>Mes</Text>
-                    <ScrollView style={styles.dateScrollView}>
-                      {months.map((month) => (
-                        <TouchableOpacity
-                          key={month}
-                          style={[
-                            styles.dateOption,
-                            selectedMonth === month && styles.dateOptionSelected
-                          ]}
-                          onPress={() => setSelectedMonth(month)}
-                        >
-                          <Text style={[
-                            styles.dateOptionText,
-                            selectedMonth === month && styles.dateOptionTextSelected
-                          ]}>
-                            {month}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                  
-                  <View style={styles.dateSelector}>
-                    <Text style={styles.dateSelectorLabel}>Día</Text>
-                    <ScrollView style={styles.dateScrollView}>
-                      {days.map((day) => (
-                        <TouchableOpacity
-                          key={day}
-                          style={[
-                            styles.dateOption,
-                            selectedDay === day && styles.dateOptionSelected
-                          ]}
-                          onPress={() => setSelectedDay(day)}
-                        >
-                          <Text style={[
-                            styles.dateOptionText,
-                            selectedDay === day && styles.dateOptionTextSelected
-                          ]}>
-                            {day}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                </View>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.confirmButton,
-                    (!selectedYear || !selectedMonth || !selectedDay) && styles.confirmButtonDisabled
-                  ]}
-                  onPress={handleDateConfirm}
-                  disabled={!selectedYear || !selectedMonth || !selectedDay}
-                >
-                  <Text style={styles.confirmButtonText}>Confirmar Fecha</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        onClose={handleCloseDatePicker}
+        onConfirm={handleDateConfirm}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={setSelectedMonth}
+        selectedDay={selectedDay}
+        setSelectedDay={setSelectedDay}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -609,217 +1023,266 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#fffdf7",
-    padding: 20,
-    paddingTop: 40,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 30,
   },
+  
+  // Background
+  backgroundContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  gradientMain: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.4,
+    backgroundColor: COLORS.background,
+  },
+  floatingCircle1: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: COLORS.primary,
+    top: 50,
+    right: -60,
+    opacity: 0.1,
+  },
+  floatingCircle2: {
+    position: "absolute",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: COLORS.secondary,
+    bottom: 100,
+    left: -40,
+    opacity: 0.08,
+  },
+  
+  // Header FIXED - LOGO CENTRADO
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between", // Distribuye espacio
     marginBottom: 10,
+    width: '100%',
   },
   backButton: {
     padding: 8,
-    marginRight: 10,
+    width: 40, // Ancho fijo
+    alignItems: 'flex-start', // Alineado a la izquierda
   },
   backIcon: {
     fontSize: 24,
-    color: "#3a5a40",
+    fontWeight: "600",
+    color: COLORS.primary,
   },
+  logoCenterContainer: {
+    flex: 1,
+    alignItems: "center", // Centra horizontalmente
+    justifyContent: "center",
+  },
+  headerSpacer: {
+    width: 40, // Mismo ancho que el botón de atrás
+  },
+  
+  // Logo Container (ya centrado por el contenedor padre)
   logoContainer: {
     alignItems: "center",
-    flex: 1,
+    justifyContent: "center",
+  },
+  logoWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBackground: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "white",
+    position: "absolute",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logo: {
     width: 80,
     height: 80,
   },
-  title: {
+  
+  // Titles
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  mainTitle: {
     fontSize: 28,
-    fontWeight: "700",
-    color: "#3a5a40",
+    fontWeight: "800",
+    color: COLORS.primary,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 6,
+    fontFamily: TYPOGRAPHY.extraBold,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b8e4e",
+  subTitle: {
+    fontSize: 14,
+    color: COLORS.lightText,
     textAlign: "center",
-    marginBottom: 30,
+    fontWeight: "500",
+    fontFamily: TYPOGRAPHY.medium,
   },
-  roleSelector: {
-    marginBottom: 25,
+  
+  // Form Container
+  formContainer: {
+    marginBottom: 20,
   },
-  roleLabel: {
+  formCard: {
+    backgroundColor: COLORS.overlay,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.08)",
+  },
+  cardHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: COLORS.primary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  
+  // Role Selector
+  roleSelectorContainer: {
+    marginBottom: 20,
+  },
+  roleSelectorLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#3a5a40",
+    color: COLORS.text,
     marginBottom: 12,
+    fontFamily: TYPOGRAPHY.bold,
   },
   roleButtons: {
     flexDirection: "row",
     gap: 12,
   },
-  roleButton: {
+  roleButtonTouchable: {
     flex: 1,
+  },
+  roleButton: {
     backgroundColor: "white",
     borderWidth: 2,
-    borderColor: "#e0ddd0",
-    borderRadius: 12,
-    padding: 20,
+    borderColor: "rgba(255, 107, 53, 0.1)",
+    borderRadius: 16,
+    padding: 16,
     alignItems: "center",
+    minHeight: 100,
+    justifyContent: "center",
   },
   roleButtonActive: {
-    borderColor: "#6b8e4e",
-    backgroundColor: "#f0f5f1",
+    borderColor: COLORS.primary,
+    backgroundColor: "rgba(255, 107, 53, 0.03)",
   },
   roleIcon: {
-    fontSize: 32,
+    fontSize: 28,
     marginBottom: 8,
   },
   roleText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.text,
     marginBottom: 4,
+    textAlign: "center",
+    fontFamily: TYPOGRAPHY.bold,
   },
   roleTextActive: {
-    color: "#3a5a40",
+    color: COLORS.primary,
   },
   roleDesc: {
-    fontSize: 12,
-    color: "#666",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#3a5a40",
-    marginTop: 20,
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3a5a40",
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  dateInputContainer: {
-    marginBottom: 5,
-  },
-  dateInput: {
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#e0ddd0",
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  dateText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  placeholderText: {
-    color: "#aaa",
-  },
-  calendarIcon: {
-    fontSize: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  datePickerContainer: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "70%",
-  },
-  datePickerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  datePickerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#3a5a40",
-    flex: 1,
-  },
-  closeButton: {
-    fontSize: 24,
-    color: "#666",
-    paddingHorizontal: 10,
-  },
-  dateSelectors: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dateSelector: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  dateSelectorLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3a5a40",
-    marginBottom: 10,
+    fontSize: 11,
+    color: COLORS.lightText,
     textAlign: "center",
+    fontFamily: TYPOGRAPHY.regular,
   },
-  dateScrollView: {
-    maxHeight: 200,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-  },
-  dateOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    alignItems: "center",
-  },
-  dateOptionSelected: {
-    backgroundColor: "#6b8e4e",
-  },
-  dateOptionText: {
+  
+  // Section Titles
+  sectionTitle: {
     fontSize: 16,
-    color: "#333",
+    fontWeight: "700",
+    color: COLORS.text,
+    marginTop: 20,
+    marginBottom: 12,
+    fontFamily: TYPOGRAPHY.bold,
   },
-  dateOptionTextSelected: {
-    color: "white",
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 107, 53, 0.08)",
+    marginVertical: 16,
+  },
+  
+  // Form Labels
+  formLabel: {
+    fontSize: 13,
     fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 6,
+    marginTop: 12,
+    fontFamily: TYPOGRAPHY.bold,
   },
-  confirmButton: {
-    backgroundColor: "#6b8e4e",
-    padding: 16,
+  
+  // Inputs
+  inputWrapper: {
+    backgroundColor: "white",
     borderRadius: 12,
+    borderWidth: 1.5,
+    flexDirection: "row",
     alignItems: "center",
+    overflow: "hidden",
+    minHeight: 48,
   },
-  confirmButtonDisabled: {
-    backgroundColor: "#ccc",
+  inputIconContainer: {
+    paddingLeft: 12,
+    paddingRight: 8,
   },
-  confirmButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+  inputIcon: {
+    fontSize: 18,
+    color: COLORS.primary,
   },
   input: {
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#e0ddd0",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: "#333",
+    flex: 1,
+    padding: 12,
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: "500",
+    minHeight: 48,
+    fontFamily: TYPOGRAPHY.regular,
+  },
+  textareaInput: {
+    textAlignVertical: "top",
+    paddingTop: 12,
+  },
+  inputFocusIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
   inputRow: {
     flexDirection: "row",
@@ -828,82 +1291,304 @@ const styles = StyleSheet.create({
   inputHalf: {
     flex: 1,
   },
+  
+  // Password
   passwordContainer: {
     position: "relative",
   },
   eyeIcon: {
     position: "absolute",
-    right: 15,
-    top: 15,
-    padding: 5,
+    right: 12,
+    top: "50%",
+    marginTop: -12,
+    zIndex: 10,
+    padding: 6,
   },
   eyeText: {
-    fontSize: 20,
+    fontSize: 16,
   },
-  textarea: {
-    minHeight: 100,
-    textAlignVertical: "top",
-    paddingTop: 14,
+  
+  // Date
+  dateInputContainer: {
+    opacity: 0.9,
   },
-  registerButton: {
-    backgroundColor: "#6b8e4e",
-    padding: 16,
+  
+  // Textarea
+  textareaContainer: {
+    minHeight: 80,
+  },
+  
+  // Buttons
+  buttonTouchable: {
+    marginTop: 8,
+  },
+  primaryButton: {
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
-    alignItems: "center",
-    marginTop: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    padding: 16,
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 56,
+    justifyContent: "center",
   },
-  registerButtonDisabled: {
-    backgroundColor: "#94a3b8",
-    opacity: 0.7,
+  secondaryButton: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    minHeight: 56,
+    justifyContent: "center",
   },
-  loadingContainer: {
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
   },
-  registerButtonText: {
+  buttonIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  primaryButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontFamily: TYPOGRAPHY.bold,
   },
-  guestButton: {
-    backgroundColor: "#e8f4ea",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 15,
-    borderWidth: 2,
-    borderColor: "#6b8e4e",
-  },
-  guestButtonText: {
-    color: "#3a5a40",
+  secondaryButtonText: {
+    color: COLORS.text,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontFamily: TYPOGRAPHY.bold,
   },
-  loginLinkContainer: {
+  buttonSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: "500",
+    fontFamily: TYPOGRAPHY.medium,
+  },
+  buttonArrow: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  buttonLoader: {
+    position: "absolute",
+    right: 16,
+  },
+  registerButton: {
     marginTop: 20,
   },
-  loginText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#666",
+  
+  // Divider
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
   },
-  loginLink: {
-    color: "#d48f27",
-    fontWeight: "700",
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 107, 53, 0.12)",
   },
-  backToHomeContainer: {
-    marginTop: 15,
-  },
-  backToHomeText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#6b8e4e",
+  dividerText: {
+    marginHorizontal: 16,
+    color: COLORS.lightText,
+    fontSize: 12,
     fontWeight: "600",
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontFamily: TYPOGRAPHY.medium,
+  },
+  
+  // Links
+  linksContainer: {
+    gap: 12,
+    marginTop: 16,
+  },
+  linkButton: {
+    paddingVertical: 8,
+  },
+  linkText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: COLORS.lightText,
+    fontWeight: "500",
+    fontFamily: TYPOGRAPHY.medium,
+  },
+  linkHighlight: {
+    color: COLORS.primary,
+    fontWeight: "700",
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  backLink: {
+    textAlign: "center",
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: "600",
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  
+  // Network
+  networkInfo: {
+    backgroundColor: COLORS.overlay,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.08)",
+  },
+  networkIconContainer: {
+    position: "relative",
+    marginRight: 10,
+  },
+  networkIcon: {
+    fontSize: 18,
+    color: COLORS.primary,
+  },
+  networkStatus: {
+    position: "absolute",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.success,
+    top: 0,
+    right: 0,
+    borderWidth: 1.5,
+    borderColor: "white",
+  },
+  networkTextContainer: {
+    flex: 1,
+  },
+  networkName: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 2,
+    fontFamily: TYPOGRAPHY.medium,
+  },
+  networkUrl: {
+    fontSize: 10,
+    color: COLORS.lightText,
+    fontFamily: TYPOGRAPHY.regular,
+  },
+  
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  datePickerContainer: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "65%",
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 107, 53, 0.1)",
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.text,
+    flex: 1,
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  closeButton: {
+    fontSize: 24,
+    fontWeight: "300",
+    color: COLORS.primary,
+    paddingHorizontal: 10,
+  },
+  dateSelectors: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 8,
+  },
+  dateSelector: {
+    flex: 1,
+  },
+  dateSelectorBackground: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.1)",
+    overflow: "hidden",
+  },
+  dateSelectorLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 10,
+    textAlign: "center",
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  dateScrollView: {
+    maxHeight: 180,
+  },
+  dateOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 107, 53, 0.05)",
+    alignItems: "center",
+  },
+  dateOptionSelected: {
+    backgroundColor: "rgba(255, 107, 53, 0.08)",
+  },
+  dateOptionText: {
+    fontSize: 15,
+    color: COLORS.text,
+    fontWeight: "500",
+    fontFamily: TYPOGRAPHY.regular,
+  },
+  dateOptionTextSelected: {
+    color: COLORS.primary,
+    fontWeight: "700",
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  selectedDatePreview: {
+    backgroundColor: "rgba(255, 107, 53, 0.05)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.1)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectedDateLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.text,
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  selectedDateText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.primary,
+    fontFamily: TYPOGRAPHY.bold,
+  },
+  confirmDateButton: {
+    marginTop: 8,
   },
 });
