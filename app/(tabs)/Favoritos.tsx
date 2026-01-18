@@ -1,9 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,16 +28,44 @@ const FloatingCirclesFav = () => {
 
 export default function Favoritos() {
   const router = useRouter();
-  const { favoritos, loadingFavoritos, cargarFavoritos, eliminarFavorito } = useFavoritos();
+  const { 
+    favoritos, 
+    loadingFavoritos, 
+    cargarFavoritos, 
+    eliminarFavorito,
+    sincronizarConBackend,
+    estaSincronizado
+  } = useFavoritos();
+  
+  const [refreshing, setRefreshing] = useState(false);
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState(false);
 
   useEffect(() => {
+    verificarAutenticacion();
     cargarFavoritos();
   }, []);
 
-  const handleEliminarFavorito = (idFavorito: number) => {
+  const verificarAutenticacion = async () => {
+    const token = await AsyncStorage.getItem("authToken");
+    const user = await AsyncStorage.getItem("user");
+    setUsuarioAutenticado(!!(token && user));
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await cargarFavoritos();
+    } catch (error) {
+      console.error("Error refrescando:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleEliminarFavorito = (idFavorito: number, nombreProducto: string) => {
     Alert.alert(
       "Eliminar Favorito",
-      "¿Estás seguro de que deseas eliminar este producto de tus favoritos?",
+      `¿Estás seguro de que deseas eliminar "${nombreProducto}" de tus favoritos?`,
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -65,22 +95,32 @@ export default function Favoritos() {
         {
           text: "Vaciar",
           style: "destructive",
-          onPress: async () => {
-            try {
-              for (const fav of favoritos) {
-                await eliminarFavorito(fav.idFavorito);
-              }
-              Alert.alert("✅ Éxito", "Se han eliminado todos tus favoritos");
-            } catch (error) {
-              Alert.alert("Error", "No se pudieron vaciar los favoritos");
-            }
+          onPress: () => {
+            Alert.alert("Atención", "Para vaciar favoritos, elimina uno por uno");
           },
         },
       ]
     );
   };
 
-  if (loadingFavoritos) {
+  const handleSincronizar = async () => {
+    try {
+      setRefreshing(true);
+      const sincronizado = await sincronizarConBackend();
+      
+      if (sincronizado) {
+        Alert.alert("✅ Sincronizado", "Tus favoritos están actualizados");
+      } else {
+        Alert.alert("⚠️ Sin conexión", "No se pudo sincronizar con el servidor");
+      }
+    } catch (error) {
+      Alert.alert("Error", "No se pudo sincronizar los favoritos");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (loadingFavoritos && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6B35" />
@@ -93,11 +133,22 @@ export default function Favoritos() {
     <View style={styles.container}>
       {/* Header con efectos visuales */}
       <View style={styles.header}>
-        {/* Círculos flotantes de fondo - SOLO 4 COLORES: NARANJA, AMARILLO, ROJO, VERDE */}
         <FloatingCirclesFav />
         
+        {/* ENCABEZADO CON CORAZÓN CENTRADO */}
         <View style={styles.headerTop}>
+          {/* Corazón centrado */}
           <Text style={styles.headerIcon}>❤️</Text>
+          
+          {/* Botón de sincronización solo si está autenticado y no sincronizado */}
+          {usuarioAutenticado && !estaSincronizado && (
+            <TouchableOpacity 
+              style={styles.sincronizarButton}
+              onPress={handleSincronizar}
+            >
+              <Text style={styles.sincronizarButtonText}>🔄</Text>
+            </TouchableOpacity>
+          )}
         </View>
         
         {/* Título con efecto especial */}
@@ -111,21 +162,36 @@ export default function Favoritos() {
             ? `Tienes ${favoritos.length} producto${favoritos.length > 1 ? "s" : ""} guardado${favoritos.length > 1 ? "s" : ""}`
             : "Guarda tus productos favoritos"}
         </Text>
+        
+        {/* Indicador de sincronización */}
+        {usuarioAutenticado && (
+          <View style={styles.sincronizacionContainer}>
+            <Text style={[
+              styles.sincronizacionText,
+              estaSincronizado ? styles.sincronizado : styles.noSincronizado
+            ]}>
+              {estaSincronizado ? "✅ Sincronizado" : "🔄 Necesita sincronizar"}
+            </Text>
+          </View>
+        )}
       </View>
 
       {favoritos.length === 0 ? (
-        // Favoritos vacío
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>💔</Text>
           <Text style={styles.emptyTitle}>No tienes favoritos</Text>
           <Text style={styles.emptySubtitle}>
-            Explora nuestros productos y guarda tus favoritos
+            {usuarioAutenticado 
+              ? "Explora nuestros productos y guarda tus favoritos"
+              : "Inicia sesión para sincronizar tus favoritos"}
           </Text>
           <TouchableOpacity
             style={styles.exploreButton}
-            onPress={() => router.push("/(tabs)/explorar" as any)}
+            onPress={() => usuarioAutenticado ? router.push("/(tabs)/explorar") : router.push("/login")}
           >
-            <Text style={styles.exploreButtonText}>Explorar Productos</Text>
+            <Text style={styles.exploreButtonText}>
+              {usuarioAutenticado ? "Explorar Productos" : "Iniciar Sesión"}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -133,14 +199,35 @@ export default function Favoritos() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={undefined}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#FF6B35']}
+              tintColor="#FF6B35"
+            />
+          }
         >
-          {/* Botón vaciar */}
+          {!usuarioAutenticado && favoritos.length > 0 && (
+            <View style={styles.mensajeSincronizacion}>
+              <Text style={styles.mensajeSincronizacionText}>
+                ⚠️ Inicia sesión para sincronizar tus favoritos entre dispositivos
+              </Text>
+              <TouchableOpacity 
+                style={styles.botonIniciarSesion}
+                onPress={() => router.push("/login")}
+              >
+                <Text style={styles.botonIniciarSesionText}>Iniciar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.headerSection}>
             <View>
               <Text style={styles.sectionTitle}>Productos guardados</Text>
               <Text style={styles.sectionSubtitle}>
                 {favoritos.length} {favoritos.length === 1 ? "producto" : "productos"}
+                {usuarioAutenticado && !estaSincronizado && " (no sincronizado)"}
               </Text>
             </View>
             {favoritos.length > 0 && (
@@ -153,21 +240,18 @@ export default function Favoritos() {
             )}
           </View>
 
-          {/* Grid de productos */}
           <View style={styles.grid}>
             {favoritos.map((fav) => (
               <View key={fav.idFavorito} style={styles.card}>
-                {/* Botón eliminar */}
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleEliminarFavorito(fav.idFavorito)}
+                  onPress={() => handleEliminarFavorito(fav.idFavorito, fav.nombreProducto)}
                 >
                   <Text style={styles.deleteButtonText}>✕</Text>
                 </TouchableOpacity>
 
-                {/* Imagen */}
                 <TouchableOpacity
-                  onPress={() => router.push(`/producto/${fav.idProducto}` as any)}
+                  onPress={() => router.push(`/producto/${fav.idProducto}`)}
                   activeOpacity={0.9}
                 >
                   <Image
@@ -176,23 +260,20 @@ export default function Favoritos() {
                   />
                 </TouchableOpacity>
 
-                {/* Info */}
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardTitle} numberOfLines={2}>
                     {fav.nombreProducto}
                   </Text>
 
-                  {/* Precio */}
                   <View style={styles.priceContainer}>
                     <Text style={styles.cardPrice}>
                       ${fav.precioProducto.toFixed(2)}
                     </Text>
                   </View>
 
-                  {/* Botón Ver Producto - COLOR NARANJA */}
                   <TouchableOpacity
                     style={styles.viewButton}
-                    onPress={() => router.push(`/producto/${fav.idProducto}` as any)}
+                    onPress={() => router.push(`/producto/${fav.idProducto}`)}
                   >
                     <Text style={styles.viewButtonText}>Ver producto</Text>
                   </TouchableOpacity>
@@ -200,6 +281,8 @@ export default function Favoritos() {
               </View>
             ))}
           </View>
+          
+          <View style={styles.espacioFinal} />
         </ScrollView>
       )}
     </View>
@@ -236,21 +319,21 @@ const styles = StyleSheet.create({
   circle2: {
     width: 80,
     height: 80,
-    backgroundColor: '#F39C12', // AMARILLO/NARANJA (stock bajo)
+    backgroundColor: '#F39C12', // AMARILLO/NARANJA
     top: 60,
     right: 30,
   },
   circle3: {
     width: 100,
     height: 100,
-    backgroundColor: '#E74C3C', // ROJO (sin stock, favoritos)
+    backgroundColor: '#E74C3C', // ROJO
     bottom: 40,
     left: 40,
   },
   circle4: {
     width: 60,
     height: 60,
-    backgroundColor: '#2ECC71', // VERDE (stock normal)
+    backgroundColor: '#2ECC71', // VERDE
     bottom: 80,
     right: 50,
   },
@@ -266,10 +349,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FF6B35",
     fontWeight: "600",
-    fontFamily: "System",
   },
   
-  // Header mejorado
+  // Header mejorado - CORAZÓN CENTRADO
   header: {
     backgroundColor: "white",
     paddingTop: 50,
@@ -286,15 +368,38 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  
+  // CORAZÓN CENTRADO - CAMBIO IMPORTANTE
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "center", // CENTRADO (no space-between)
+    width: '100%',
     marginBottom: 12,
     zIndex: 1,
+    position: 'relative',
   },
+  
   headerIcon: {
     fontSize: 40,
+  },
+  
+  // Botón de sincronización a la derecha
+  sincronizarButton: {
+    backgroundColor: '#FF6B35',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  
+  sincronizarButtonText: {
+    fontSize: 20,
+    color: 'white',
   },
   
   // Título con efectos
@@ -303,31 +408,48 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     zIndex: 1,
   },
+  
   headerTitle: {
     fontSize: 28,
     fontWeight: "700",
     color: "#2C3E50",
     textAlign: 'center',
-    fontFamily: "System",
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 3,
   },
+  
   titleUnderline: {
     width: 60,
     height: 4,
-    backgroundColor: '#FF6B35', // NARANJA (mismo que explorar)
+    backgroundColor: '#FF6B35',
     borderRadius: 2,
     marginTop: 6,
   },
+  
   headerSubtitle: {
     fontSize: 15,
     color: "#64748b",
     marginTop: 4,
     textAlign: "center",
-    fontFamily: "System",
     zIndex: 1,
+  },
+  
+  // Indicador de sincronización
+  sincronizacionContainer: {
+    marginTop: 8,
+    zIndex: 1,
+  },
+  
+  sincronizacionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  sincronizado: {
+    color: '#2ECC71',
+  },
+  
+  noSincronizado: {
+    color: '#F39C12',
   },
   
   emptyContainer: {
@@ -336,27 +458,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 40,
   },
+  
   emptyIcon: {
     fontSize: 80,
     marginBottom: 20,
     color: "#9CA3AF",
   },
+  
   emptyTitle: {
     fontSize: 24,
     fontWeight: "700",
     color: "#1e293b",
     marginBottom: 12,
-    fontFamily: "System",
   },
+  
   emptySubtitle: {
     fontSize: 16,
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 30,
-    fontFamily: "System",
   },
   
-  // Botón Explorar - COLOR NARANJA
   exploreButton: {
     backgroundColor: "#FF6B35",
     paddingVertical: 16,
@@ -368,41 +490,70 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
   },
+  
   exploreButtonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "System",
   },
   
   scrollView: {
     flex: 1,
   },
+  
   scrollContent: {
     padding: 20,
   },
   
-  // Header de sección
+  mensajeSincronizacion: {
+    backgroundColor: '#FFF9E6',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F4B419',
+    alignItems: 'center',
+  },
+  
+  mensajeSincronizacionText: {
+    color: '#B45309',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  
+  botonIniciarSesion: {
+    backgroundColor: '#FF6B35',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  
+  botonIniciarSesionText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
   headerSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 24,
   },
+  
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#1e293b",
-    fontFamily: "System",
   },
+  
   sectionSubtitle: {
     fontSize: 14,
     color: "#64748b",
     marginTop: 4,
-    fontFamily: "System",
   },
   
-  // Botón Vaciar - COLOR ROJO
   vaciarButton: {
     backgroundColor: "#FEE2E2",
     paddingVertical: 10,
@@ -410,27 +561,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E74C3C",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
+  
   vaciarButtonText: {
     color: "#E74C3C",
     fontSize: 14,
     fontWeight: "600",
-    fontFamily: "System",
   },
   
-  // Grid y cards
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
   
-  // Card - IGUAL QUE EN EXPLORAR
   card: {
     width: "48%",
     backgroundColor: "white",
@@ -447,7 +591,6 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   
-  // Botón eliminar - COLOR ROJO
   deleteButton: {
     position: "absolute",
     top: 8,
@@ -461,17 +604,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
     borderWidth: 2,
     borderColor: "#E74C3C",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
+  
   deleteButtonText: {
     color: "#E74C3C",
     fontSize: 16,
     fontWeight: "700",
-    fontFamily: "System",
   },
   
   cardImage: {
@@ -490,37 +628,32 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     marginBottom: 8,
     minHeight: 36,
-    fontFamily: "System",
   },
   
   priceContainer: {
     marginBottom: 12,
   },
   
-  // Precio - COLOR NARANJA (igual que explorar)
   cardPrice: {
     fontSize: 18,
     fontWeight: "700",
     color: "#FF6B35",
-    fontFamily: "System",
   },
   
-  // Botón Ver Producto - COLOR NARANJA
   viewButton: {
     backgroundColor: "#FF6B35",
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
-    shadowColor: "#FF6B35",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
   },
+  
   viewButtonText: {
     color: "white",
     fontSize: 13,
     fontWeight: "600",
-    fontFamily: "System",
+  },
+  
+  espacioFinal: {
+    height: 40,
   },
 });

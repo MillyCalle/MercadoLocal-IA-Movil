@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
+  Easing,
   Image,
   Modal,
   ScrollView,
@@ -16,6 +18,7 @@ import {
 } from "react-native";
 import { API_CONFIG } from "../../config";
 import { useCarrito } from "../context/CarritoContext";
+import { useFavoritos } from "../context/FavoritosContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -41,16 +44,29 @@ interface Producto {
   }>;
 }
 
+// 
+const PremiumCard = ({ children, style }: {
+  children: React.ReactNode;
+  style?: any;
+}) => {
+  return (
+    <View style={[styles.premiumCard, style]}>
+      {children}
+    </View>
+  );
+};
+
 export default function ProductoDetalle() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { agregarCarrito: agregarAlCarritoContext } = useCarrito();
+  const { agregarFavorito, favoritos } = useFavoritos();
 
   const [producto, setProducto] = useState<Producto | null>(null);
   const [loading, setLoading] = useState(true);
   const [cantidad, setCantidad] = useState(1);
   const [menuVendedor, setMenuVendedor] = useState(false);
-  const [esFavorito, setEsFavorito] = useState(false);
+  const [guardandoFavorito, setGuardandoFavorito] = useState(false);
   
   // Modales
   const [showEnvio, setShowEnvio] = useState(false);
@@ -62,18 +78,38 @@ export default function ProductoDetalle() {
   const [nuevaCalificacion, setNuevaCalificacion] = useState<number>(5);
   const [nuevoComentario, setNuevoComentario] = useState("");
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  // Verificar si el producto está en favoritos usando el contexto
+  const esFavorito = producto ? favoritos.some(fav => fav.idProducto === producto.idProducto) : false;
+
   useEffect(() => {
     cargarProducto();
-    verificarFavorito();
+    startAnimations();
   }, [id]);
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const cargarProducto = async () => {
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}/productos/detalle/${id}`);
       if (!response.ok) throw new Error("Error al cargar producto");
       const data: Producto = await response.json();
-      console.log("📦 Producto cargado:", data);
-      console.log("⭐ Valoraciones:", data.valoraciones);
       setProducto(data);
     } catch (error) {
       console.error("Error:", error);
@@ -84,86 +120,128 @@ export default function ProductoDetalle() {
     }
   };
 
-  const verificarFavorito = async () => {
-    try {
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
+  const guardarYIrAFavoritos = async () => {
+  try {
+    setGuardandoFavorito(true);
+    
+    if (!producto) {
+      Alert.alert("Error", "No hay información del producto");
+      setGuardandoFavorito(false);
+      return;
+    }
+    
+    // 1. VERIFICAR AUTENTICACIÓN
+    const userStr = await AsyncStorage.getItem("user");
+    const token = await AsyncStorage.getItem("authToken");
 
-      if (!userStr || !token) return;
-
-      const user = JSON.parse(userStr);
-
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}/favoritos/verificar/${user.idUsuario}/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+    if (!userStr || !token) {
+      Alert.alert(
+        "Inicia sesión",
+        "Debes iniciar sesión para guardar en favoritos",
+        [
+          { text: "Cancelar" },
+          { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+        ]
       );
-
-      if (response.ok) {
-        const data = await response.json();
-        setEsFavorito(data.esFavorito || false);
-      }
-    } catch (error) {
-      console.log("Error verificando favorito:", error);
+      setGuardandoFavorito(false);
+      return;
     }
-  };
 
-  const toggleFavorito = async () => {
+    // 2. PARSEAR USUARIO CORRECTAMENTE
+    let user;
     try {
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para guardar favoritos",
-          [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
-          ]
-        );
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/favoritos/agregar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          idConsumidor: user.idUsuario,
-          idProducto: producto?.idProducto,
-        }),
-      });
-
-      if (response.ok) {
-        setEsFavorito(!esFavorito);
-        Alert.alert(
-          "¡Listo!",
-          esFavorito
-            ? "Producto eliminado de favoritos 💔"
-            : "Producto agregado a favoritos ❤️"
-        );
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      Alert.alert("Error", "No se pudo actualizar favoritos");
+      user = JSON.parse(userStr);
+    } catch (parseError) {
+      console.error("Error parseando usuario:", parseError);
+      Alert.alert("Error", "Error en los datos del usuario");
+      setGuardandoFavorito(false);
+      return;
     }
-  };
+    
+    // 3. VERIFICAR DATOS DEL USUARIO
+    if (!user || !user.idUsuario) {
+      Alert.alert("Error", "No se pudo obtener la información del usuario");
+      setGuardandoFavorito(false);
+      return;
+    }
+
+    // 4. SOLO AGREGAR SI NO ES FAVORITO
+    if (!esFavorito) {
+      // Agregar al contexto local primero (para feedback inmediato)
+      agregarFavorito(producto.idProducto);
+      
+      // Hacer petición al backend
+      try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/favoritos/agregar`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            idConsumidor: user.idUsuario,
+            idProducto: producto.idProducto,
+          }),
+        });
+
+        if (!response.ok) {
+          // Leer la respuesta UNA SOLA VEZ
+          let errorData;
+          try {
+            const responseText = await response.text();
+            try {
+              errorData = JSON.parse(responseText);
+            } catch {
+              errorData = { message: responseText || "Error del servidor" };
+            }
+          } catch {
+            errorData = { message: "Error al leer respuesta del servidor" };
+          }
+          
+          const errorMessage = errorData.message || errorData.error || "Error del servidor";
+          
+          // Si el producto ya está en favoritos en el backend, no es un error crítico
+          if (typeof errorMessage === 'string' && 
+              (errorMessage.includes("ya existe") || 
+               errorMessage.includes("already") ||
+               errorMessage.includes("duplicate"))) {
+            console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
+            // Solo log, NO mostramos alerta
+          } else {
+            console.warn("Error del servidor al agregar favorito:", errorMessage);
+            // NO MOSTRAMOS ALERTA - Solo log en consola
+          }
+        } else {
+          // Respuesta exitosa
+          const responseData = await response.json();
+          console.log("Favorito agregado en el servidor:", responseData);
+        }
+      } catch (fetchError: any) {
+        console.error("Error en la petición al servidor:", fetchError.message || fetchError);
+        // NO MOSTRAMOS ALERTA - Solo log en consola
+      }
+      
+      Alert.alert("¡Guardado!", "Producto agregado a favoritos");
+    } else {
+      // Si ya es favorito, solo navegamos
+      Alert.alert("Información", "Este producto ya está en tus favoritos");
+    }
+    
+    // 5. NAVEGAR A FAVORITOS
+    router.push("/(tabs)/Favoritos" as any);
+    
+  } catch (error) {
+    console.error("Error en guardarYIrAFavoritos:", error);
+    Alert.alert("Error", "No se pudo completar la acción");
+  } finally {
+    setGuardandoFavorito(false);
+  }
+};
 
   const agregarAlCarrito = async () => {
     try {
-      console.log("🎬 INICIANDO agregarAlCarrito");
-      
       const userStr = await AsyncStorage.getItem("user");
       const token = await AsyncStorage.getItem("authToken");
-
-      console.log("🔑 Token existe:", !!token);
-      console.log("👤 Usuario existe:", !!userStr);
 
       if (!userStr || !token) {
         Alert.alert(
@@ -177,94 +255,95 @@ export default function ProductoDetalle() {
         return;
       }
 
-      console.log("📦 ID Producto:", producto?.idProducto);
-      console.log("📊 Cantidad:", cantidad);
-
-      // ✅ Usar la función del context renombrada
       await agregarAlCarritoContext(producto!.idProducto, cantidad);
       
-      console.log("✅ agregarCarrito completado exitosamente");
       Alert.alert("¡Agregado!", `${producto?.nombreProducto} agregado al carrito 🛒`);
       
     } catch (error: any) {
       console.error("❌ Error en agregarAlCarrito:", error);
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error stack:", error.stack);
       Alert.alert("Error al agregar", error.message || "No se pudo agregar al carrito");
     }
   };
 
   const comprarAhora = async () => {
-  try {
-    const userStr = await AsyncStorage.getItem("user");
-    const token = await AsyncStorage.getItem("authToken");
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      const token = await AsyncStorage.getItem("authToken");
 
-    if (!userStr || !token) {
-      Alert.alert(
-        "Inicia sesión",
-        "Debes iniciar sesión para comprar",
-        [
-          { text: "Cancelar" },
-          { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
-        ]
-      );
-      return;
-    }
-
-    const user = JSON.parse(userStr);
-    const idConsumidor = user.idConsumidor || user.idUsuario;
-
-    const body = {
-      idConsumidor: idConsumidor,
-      idVendedor: producto?.idVendedor,
-      metodoPago: "TARJETA",
-      detalles: [
-        {
-          idProducto: producto?.idProducto,
-          cantidad: cantidad,
-        },
-      ],
-    };
-
-    console.log("💳 Comprando ahora:", body);
-
-    const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const responseText = await response.text();
-    console.log("📥 Respuesta compra:", responseText);
-
-    if (!response.ok) {
-      let errorMessage = "Error al procesar la compra";
-      try {
-        const errorData = JSON.parse(responseText);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
-        errorMessage = responseText || errorMessage;
+      if (!userStr || !token) {
+        Alert.alert(
+          "Inicia sesión",
+          "Debes iniciar sesión para comprar",
+          [
+            { text: "Cancelar" },
+            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+          ]
+        );
+        return;
       }
-      console.error("❌ Error del servidor:", errorMessage);
-      Alert.alert("Error", errorMessage);
-      return;
+
+      const user = JSON.parse(userStr);
+      const idConsumidor = user.idConsumidor || user.idUsuario;
+
+      const body = {
+        idConsumidor: idConsumidor,
+        idVendedor: producto?.idVendedor,
+        metodoPago: "TARJETA",
+        detalles: [
+          {
+            idProducto: producto?.idProducto,
+            cantidad: cantidad,
+          },
+        ],
+      };
+
+      const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      // Leer la respuesta UNA SOLA VEZ
+      let responseData;
+      let responseText = "";
+      
+      try {
+        responseText = await response.text();
+      } catch (readError) {
+        console.error("Error leyendo respuesta:", readError);
+        responseText = "";
+      }
+
+      if (!response.ok) {
+        let errorMessage = "Error al procesar la compra";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = responseText || errorMessage;
+        }
+        Alert.alert("Error", errorMessage);
+        return;
+      }
+
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parseando respuesta JSON:", parseError);
+        Alert.alert("Error", "Respuesta del servidor inválida");
+        return;
+      }
+
+      router.push(`/consumidor/Pedido/${responseData.idPedido}` as any);
+
+    } catch (error) {
+      console.error("❌ Error al comprar:", error);
+      Alert.alert("Error", "No se pudo procesar la compra. Verifica tu conexión.");
     }
-
-    // ✅ Parsear la respuesta para obtener el ID del pedido
-    const pedidoCreado = JSON.parse(responseText);
-    console.log("✅ Pedido creado:", pedidoCreado);
-
-    // ✅ Redirigir a la página del pedido
-    router.push(`/consumidor/Pedido/${pedidoCreado.idPedido}` as any);
-
-  } catch (error) {
-    console.error("❌ Error al comprar:", error);
-    Alert.alert("Error", "No se pudo procesar la compra. Verifica tu conexión.");
-  }
-};
+  };
 
   const enviarReseña = async () => {
     try {
@@ -291,9 +370,6 @@ export default function ProductoDetalle() {
         comentario: nuevoComentario.trim(),
       };
 
-      console.log("📤 Enviando reseña:", body);
-      console.log("👤 Usuario completo:", user);
-
       const response = await fetch(`${API_CONFIG.BASE_URL}/valoraciones/crear`, {
         method: "POST",
         headers: {
@@ -303,9 +379,16 @@ export default function ProductoDetalle() {
         body: JSON.stringify(body),
       });
 
-      const responseText = await response.text();
-      console.log("📥 Respuesta del servidor:", responseText);
-      console.log("📊 Status code:", response.status);
+      // Leer la respuesta UNA SOLA VEZ
+      let responseData;
+      let responseText = "";
+      
+      try {
+        responseText = await response.text();
+      } catch (readError) {
+        console.error("Error leyendo respuesta:", readError);
+        responseText = "";
+      }
 
       if (!response.ok) {
         let errorMessage = "Error al enviar reseña";
@@ -315,12 +398,19 @@ export default function ProductoDetalle() {
         } catch (e) {
           errorMessage = responseText || errorMessage;
         }
-        console.error("❌ Error del servidor:", errorMessage);
         Alert.alert("Error", errorMessage);
         return;
       }
 
-      Alert.alert("¡Enviado!", "Tu reseña ha sido publicada 🎉");
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parseando respuesta JSON:", parseError);
+        Alert.alert("Error", "Respuesta del servidor inválida");
+        return;
+      }
+
+      Alert.alert("¡Enviado!", "✅ Tu reseña ha sido publicada 🎉");
       setShowNuevaReseña(false);
       setNuevoComentario("");
       setNuevaCalificacion(5);
@@ -334,7 +424,7 @@ export default function ProductoDetalle() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6b8e4e" />
+        <ActivityIndicator size="large" color="#FF6B35" />
         <Text style={styles.loadingText}>Cargando producto...</Text>
       </View>
     );
@@ -345,11 +435,25 @@ export default function ProductoDetalle() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>←</Text>
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <View style={styles.backButtonCircle}>
+              <Text style={styles.backButtonIcon}>←</Text>
+            </View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         <View style={styles.imageSection}>
           <Image
@@ -361,7 +465,7 @@ export default function ProductoDetalle() {
           {producto.stockProducto > 0 && producto.stockProducto <= 10 && (
             <View style={styles.stockBadge}>
               <Text style={styles.stockBadgeText}>
-                ⚡ Solo {producto.stockProducto} disponibles
+                ⚡ ¡Solo {producto.stockProducto} disponibles!
               </Text>
             </View>
           )}
@@ -370,13 +474,17 @@ export default function ProductoDetalle() {
         <View style={styles.contentSection}>
           <View style={styles.categoryRow}>
             {producto.nombreCategoria && (
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{producto.nombreCategoria}</Text>
+              <View style={[styles.categoryBadge, { backgroundColor: '#FFF2E8' }]}>
+                <Text style={[styles.categoryText, { color: '#FF6B35' }]}>
+                  {producto.nombreCategoria}
+                </Text>
               </View>
             )}
             {producto.nombreSubcategoria && (
-              <View style={[styles.categoryBadge, { backgroundColor: "#F4E8C1" }]}>
-                <Text style={styles.categoryText}>{producto.nombreSubcategoria}</Text>
+              <View style={[styles.categoryBadge, { backgroundColor: '#E8F4FD' }]}>
+                <Text style={[styles.categoryText, { color: '#3498DB' }]}>
+                  {producto.nombreSubcategoria}
+                </Text>
               </View>
             )}
           </View>
@@ -387,24 +495,30 @@ export default function ProductoDetalle() {
             style={styles.ratingRow}
             onPress={() => setShowReseñas(true)}
           >
-            <Text style={styles.ratingStars}>⭐</Text>
-            <Text style={styles.ratingValue}>
-              {producto.promedioValoracion?.toFixed(1) || "0.0"}
-            </Text>
+            <View style={styles.ratingContainer}>
+              <Text style={styles.ratingStars}>⭐</Text>
+              <Text style={styles.ratingValue}>
+                {producto.promedioValoracion?.toFixed(1) || "0.0"}
+              </Text>
+            </View>
             <Text style={styles.ratingCount}>
               ({producto.totalValoraciones || 0} reseñas)
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.priceCard}>
-            <Text style={styles.priceLabel}>PRECIO</Text>
+          <PremiumCard style={styles.priceCard}>
+            <View style={styles.priceHeader}>
+              <Text style={styles.priceLabel}>PRECIO</Text>
+              {producto.unidadMedida && (
+                <Text style={styles.unitLabel}>
+                  Por {producto.unidadMedida}
+                </Text>
+              )}
+            </View>
             <Text style={styles.priceValue}>
               ${parseFloat(String(producto.precioProducto)).toFixed(2)}
             </Text>
-            <Text style={styles.priceUnit}>
-              Por {producto.unidadMedida || "unidad"}
-            </Text>
-          </View>
+          </PremiumCard>
 
           <View style={styles.quantitySection}>
             <Text style={styles.sectionLabel}>Cantidad</Text>
@@ -432,24 +546,29 @@ export default function ProductoDetalle() {
               style={[styles.actionButton, styles.cartButton]}
               onPress={agregarAlCarrito}
             >
-              <Text style={styles.actionButtonText}>🛒 Agregar al Carrito</Text>
+              <Text style={[styles.actionButtonText, styles.cartButtonText]}>🛒 Agregar al Carrito</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, styles.buyButton]}
               onPress={comprarAhora}
             >
-              <Text style={styles.actionButtonText}>⚡ Comprar Ahora</Text>
+              <Text style={[styles.actionButtonText, styles.buyButtonText]}>⚡ Comprar Ahora</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={[styles.secondaryButton, esFavorito && styles.favoritoActivo]}
-              onPress={toggleFavorito}
+              onPress={guardarYIrAFavoritos}
+              disabled={guardandoFavorito}
             >
-              <Text style={styles.secondaryButtonText}>
-                {esFavorito ? "❤️ Guardado" : "🤍 Guardar"}
-              </Text>
+              {guardandoFavorito ? (
+                <ActivityIndicator size="small" color="#FF6B35" />
+              ) : (
+                <Text style={styles.secondaryButtonText}>
+                  {esFavorito ? "❤️ Guardado" : "🤍 Guardar"}
+                </Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.secondaryButton}
@@ -465,16 +584,18 @@ export default function ProductoDetalle() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.vendorCard}>
-            <View style={styles.vendorAvatar}>
-              <Text style={styles.vendorAvatarText}>🌾</Text>
-            </View>
-            <View style={styles.vendorInfo}>
-              <Text style={styles.vendorLabel}>VENDIDO POR</Text>
-              <Text style={styles.vendorName}>{producto.nombreVendedor}</Text>
-              {producto.nombreEmpresa && (
-                <Text style={styles.vendorCompany}>{producto.nombreEmpresa}</Text>
-              )}
+          <PremiumCard style={styles.vendorCard}>
+            <View style={styles.vendorHeader}>
+              <View style={styles.vendorAvatar}>
+                <Text style={styles.vendorAvatarText}>🌾</Text>
+              </View>
+              <View style={styles.vendorInfo}>
+                <Text style={styles.vendorLabel}>VENDIDO POR</Text>
+                <Text style={styles.vendorName}>{producto.nombreVendedor}</Text>
+                {producto.nombreEmpresa && (
+                  <Text style={styles.vendorCompany}>{producto.nombreEmpresa}</Text>
+                )}
+              </View>
             </View>
             <TouchableOpacity
               style={styles.vendorMenuButton}
@@ -482,14 +603,14 @@ export default function ProductoDetalle() {
             >
               <Text style={styles.vendorMenuIcon}>⋯</Text>
             </TouchableOpacity>
-          </View>
+          </PremiumCard>
 
-          <View style={styles.descriptionCard}>
+          <PremiumCard style={styles.descriptionCard}>
             <Text style={styles.sectionTitle}>📋 Descripción</Text>
             <Text style={styles.descriptionText}>
               {producto.descripcionProducto || "Sin descripción disponible"}
             </Text>
-          </View>
+          </PremiumCard>
 
           <TouchableOpacity
             style={styles.verReseñasButton}
@@ -511,9 +632,10 @@ export default function ProductoDetalle() {
         </View>
       </ScrollView>
 
+      {/* MODALES */}
       <Modal visible={showEnvio} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <PremiumCard style={styles.modalContent}>
             <Text style={styles.modalTitle}>📦 Política de Envío</Text>
             <Text style={styles.modalText}>✓ Envío dentro de 24-48 horas</Text>
             <Text style={styles.modalText}>✓ Entregas dentro de la ciudad</Text>
@@ -524,13 +646,13 @@ export default function ProductoDetalle() {
             >
               <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
+          </PremiumCard>
         </View>
       </Modal>
 
       <Modal visible={showReembolso} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <PremiumCard style={styles.modalContent}>
             <Text style={styles.modalTitle}>💵 Política de Reembolso</Text>
             <Text style={styles.modalText}>✓ Reembolso hasta 48h tras entrega</Text>
             <Text style={styles.modalText}>✓ Requiere evidencia fotográfica</Text>
@@ -541,18 +663,18 @@ export default function ProductoDetalle() {
             >
               <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
+          </PremiumCard>
         </View>
       </Modal>
 
       <Modal visible={showReseñas} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: height * 0.7 }]}>
+          <PremiumCard style={[styles.modalContent, { maxHeight: height * 0.7 }]}>
             <Text style={styles.modalTitle}>⭐ Reseñas del Producto</Text>
             <ScrollView style={{ maxHeight: 400 }}>
               {producto.valoraciones && producto.valoraciones.length > 0 ? (
                 producto.valoraciones.map((v, i) => (
-                  <View key={i} style={styles.reviewCard}>
+                  <PremiumCard key={i} style={styles.reviewCard}>
                     <View style={styles.reviewHeader}>
                       <Text style={styles.reviewName}>{v.nombreConsumidor}</Text>
                       <View style={styles.reviewRatingContainer}>
@@ -560,7 +682,7 @@ export default function ProductoDetalle() {
                       </View>
                     </View>
                     <Text style={styles.reviewComment}>{v.comentario}</Text>
-                  </View>
+                  </PremiumCard>
                 ))
               ) : (
                 <View style={styles.noReviewsContainer}>
@@ -578,13 +700,13 @@ export default function ProductoDetalle() {
             >
               <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
+          </PremiumCard>
         </View>
       </Modal>
 
       <Modal visible={showNuevaReseña} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <PremiumCard style={styles.modalContent}>
             <Text style={styles.modalTitle}>✍️ Escribe tu reseña</Text>
             
             <Text style={styles.inputLabel}>Calificación</Text>
@@ -594,8 +716,11 @@ export default function ProductoDetalle() {
                   key={star}
                   onPress={() => setNuevaCalificacion(star)}
                 >
-                  <Text style={styles.ratingStar}>
-                    {star <= nuevaCalificacion ? "⭐" : "☆"}
+                  <Text style={[
+                    styles.ratingStar,
+                    star <= nuevaCalificacion && styles.ratingStarActive
+                  ]}>
+                    ⭐
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -614,10 +739,10 @@ export default function ProductoDetalle() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#e5e7eb" }]}
+                style={[styles.modalButton, styles.modalButtonSecondary]}
                 onPress={() => setShowNuevaReseña(false)}
               >
-                <Text style={[styles.modalButtonText, { color: "#333" }]}>
+                <Text style={[styles.modalButtonText, styles.modalButtonSecondaryText]}>
                   Cancelar
                 </Text>
               </TouchableOpacity>
@@ -625,7 +750,7 @@ export default function ProductoDetalle() {
                 <Text style={styles.modalButtonText}>Enviar</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </PremiumCard>
         </View>
       </Modal>
 
@@ -635,9 +760,9 @@ export default function ProductoDetalle() {
           activeOpacity={1}
           onPress={() => setMenuVendedor(false)}
         >
-          <View style={styles.menuCard}>
+          <PremiumCard style={styles.menuCard}>
             <TouchableOpacity
-              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              style={styles.menuItem}
               onPress={() => {
                 setMenuVendedor(false);
                 Alert.alert("Perfil del Vendedor", "Función próximamente disponible");
@@ -645,7 +770,7 @@ export default function ProductoDetalle() {
             >
               <Text style={styles.menuItemText}>👤 Ver Perfil del Vendedor</Text>
             </TouchableOpacity>
-          </View>
+          </PremiumCard>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -666,8 +791,9 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#6b8e4e",
+    color: "#FF6B35",
     fontWeight: "600",
+    fontFamily: "System",
   },
   scrollView: {
     flex: 1,
@@ -676,9 +802,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 50,
     left: 20,
+    right: 20,
     zIndex: 10,
   },
   backButton: {
+    zIndex: 11,
+  },
+  backButtonCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -686,15 +816,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: "#6b8e4e",
-    fontWeight: "600",
+  backButtonIcon: {
+    fontSize: 22,
+    color: "#FF6B35",
+    fontWeight: "700",
   },
   imageSection: {
     height: 400,
@@ -707,17 +837,23 @@ const styles = StyleSheet.create({
   },
   stockBadge: {
     position: "absolute",
-    top: 60,
-    right: 20,
-    backgroundColor: "#F5C744",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    bottom: 20,
+    alignSelf: "center",
+    backgroundColor: "#FF6B35",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   stockBadgeText: {
     color: "white",
     fontSize: 12,
     fontWeight: "700",
+    fontFamily: "System",
   },
   contentSection: {
     padding: 20,
@@ -729,27 +865,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryBadge: {
-    backgroundColor: "#ECF2E3",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 16,
   },
   categoryText: {
-    color: "#3a5a40",
     fontSize: 11,
     fontWeight: "600",
+    fontFamily: "System",
   },
   productName: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 12,
     lineHeight: 32,
+    fontFamily: "System",
   },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
+    justifyContent: "space-between",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   ratingStars: {
     fontSize: 20,
@@ -760,32 +901,50 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#F4B419",
     marginRight: 6,
+    fontFamily: "System",
   },
   ratingCount: {
     fontSize: 13,
-    color: "#6B7F69",
+    color: "#64748b",
+    fontFamily: "System",
+  },
+  premiumCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
   priceCard: {
-    backgroundColor: "#F9D94A",
-    padding: 20,
-    borderRadius: 16,
     marginBottom: 20,
+  },
+  priceHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
   priceLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#2D3E2B",
-    marginBottom: 6,
+    color: "#64748b",
+    fontFamily: "System",
+  },
+  unitLabel: {
+    fontSize: 11,
+    color: "#64748b",
+    fontFamily: "System",
   },
   priceValue: {
     fontSize: 36,
     fontWeight: "900",
-    color: "#2D3E2B",
-    marginBottom: 4,
-  },
-  priceUnit: {
-    fontSize: 11,
-    color: "#6B7F69",
+    color: "#FF6B35",
+    fontFamily: "System",
   },
   quantitySection: {
     marginBottom: 20,
@@ -793,8 +952,9 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 12,
+    fontFamily: "System",
   },
   quantityControls: {
     flexDirection: "row",
@@ -813,12 +973,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ECF2E3",
+    borderColor: "#e5e7eb",
   },
   quantityButtonText: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#5A8F48",
+    color: "#FF6B35",
+    fontFamily: "System",
   },
   quantityDisplay: {
     width: 40,
@@ -827,7 +988,8 @@ const styles = StyleSheet.create({
   quantityText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
   actionsRow: {
     gap: 12,
@@ -835,19 +997,32 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   cartButton: {
-    backgroundColor: "#5A8F48",
+    backgroundColor: 'white',
+    borderWidth: 1.5,
+    borderColor: '#FF6B35',
   },
   buyButton: {
-    backgroundColor: "#2D3E2B",
+    backgroundColor: '#FF6B35',
   },
   actionButtonText: {
-    color: "white",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
+    fontFamily: "System",
+  },
+  cartButtonText: {
+    color: '#FF6B35',
+  },
+  buyButtonText: {
+    color: 'white',
   },
   secondaryActions: {
     flexDirection: "row",
@@ -860,6 +1035,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
   },
   favoritoActivo: {
     backgroundColor: "#FFE5E9",
@@ -867,23 +1044,24 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
   vendorCard: {
     flexDirection: "row",
-    backgroundColor: "#FAFCF8",
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "#ECF2E3",
+    alignItems: "center",
     marginBottom: 20,
+  },
+  vendorHeader: {
+    flexDirection: "row",
+    flex: 1,
     alignItems: "center",
   },
   vendorAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#6b8e4e",
+    backgroundColor: "#FF6B35",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -896,45 +1074,45 @@ const styles = StyleSheet.create({
   },
   vendorLabel: {
     fontSize: 10,
-    color: "#6B7F69",
+    color: "#64748b",
     fontWeight: "600",
     marginBottom: 2,
+    fontFamily: "System",
   },
   vendorName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
   vendorCompany: {
     fontSize: 12,
-    color: "#6B7F69",
+    color: "#64748b",
     marginTop: 2,
+    fontFamily: "System",
   },
   vendorMenuButton: {
     padding: 8,
   },
   vendorMenuIcon: {
     fontSize: 24,
-    color: "#6B7F69",
+    color: "#64748b",
   },
   descriptionCard: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ECF2E3",
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 12,
+    fontFamily: "System",
   },
   descriptionText: {
     fontSize: 14,
-    color: "#6B7F69",
+    color: "#64748b",
     lineHeight: 22,
+    fontFamily: "System",
   },
   verReseñasButton: {
     backgroundColor: "#FFF9E6",
@@ -948,19 +1126,26 @@ const styles = StyleSheet.create({
   verReseñasButtonText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
   escribirReseñaButton: {
-    backgroundColor: "#5A8F48",
+    backgroundColor: "#FF6B35",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 20,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   escribirReseñaButtonText: {
     fontSize: 15,
     fontWeight: "700",
     color: "white",
+    fontFamily: "System",
   },
   modalOverlay: {
     flex: 1,
@@ -970,35 +1155,41 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
     width: "100%",
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 16,
+    fontFamily: "System",
   },
   modalText: {
     fontSize: 14,
-    color: "#6B7F69",
+    color: "#64748b",
     marginBottom: 10,
     lineHeight: 20,
+    fontFamily: "System",
   },
   modalButton: {
-    backgroundColor: "#5A8F48",
+    backgroundColor: "#FF6B35",
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
     marginTop: 16,
   },
+  modalButtonSecondary: {
+    backgroundColor: "#e5e7eb",
+  },
   modalButtonText: {
     color: "white",
     fontSize: 15,
     fontWeight: "700",
+    fontFamily: "System",
+  },
+  modalButtonSecondaryText: {
+    color: "#333",
   },
   modalActions: {
     flexDirection: "row",
@@ -1006,12 +1197,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   reviewCard: {
-    backgroundColor: "#F9FBF7",
-    padding: 16,
-    borderRadius: 12,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#ECF2E3",
+    padding: 16,
   },
   reviewHeader: {
     flexDirection: "row",
@@ -1022,7 +1209,8 @@ const styles = StyleSheet.create({
   reviewName: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
   reviewRatingContainer: {
     backgroundColor: "#FFF9E6",
@@ -1034,11 +1222,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#F4B419",
+    fontFamily: "System",
   },
   reviewComment: {
     fontSize: 14,
-    color: "#6B7F69",
+    color: "#64748b",
     lineHeight: 20,
+    fontFamily: "System",
   },
   noReviewsContainer: {
     alignItems: "center",
@@ -1051,20 +1241,23 @@ const styles = StyleSheet.create({
   noReviews: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 6,
+    fontFamily: "System",
   },
   noReviewsSubtext: {
     fontSize: 13,
-    color: "#6B7F69",
+    color: "#64748b",
     textAlign: "center",
+    fontFamily: "System",
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 8,
     marginTop: 12,
+    fontFamily: "System",
   },
   ratingSelector: {
     flexDirection: "row",
@@ -1073,23 +1266,28 @@ const styles = StyleSheet.create({
   },
   ratingStar: {
     fontSize: 32,
+    opacity: 0.3,
+  },
+  ratingStarActive: {
+    opacity: 1,
   },
   textArea: {
     backgroundColor: "#F9FBF7",
     borderRadius: 12,
     padding: 14,
     fontSize: 14,
-    color: "#2D3E2B",
+    color: "#1e293b",
     borderWidth: 1,
-    borderColor: "#ECF2E3",
+    borderColor: "#e5e7eb",
     minHeight: 100,
     textAlignVertical: "top",
+    fontFamily: "System",
   },
   menuCard: {
+    width: "80%",
     backgroundColor: "white",
     borderRadius: 16,
     overflow: "hidden",
-    marginHorizontal: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1098,12 +1296,11 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     padding: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ECF2E3",
   },
   menuItemText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#2D3E2B",
+    color: "#1e293b",
+    fontFamily: "System",
   },
 });

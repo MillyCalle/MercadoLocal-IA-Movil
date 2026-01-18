@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { API_CONFIG } from "../../config";
 
-
 interface Favorito {
   idFavorito: number;
   idProducto: number;
@@ -14,10 +13,13 @@ interface Favorito {
 interface FavoritosContextType {
   favoritos: Favorito[];
   loadingFavoritos: boolean;
+  estaSincronizado: boolean;
   cargarFavoritos: () => Promise<void>;
   agregarFavorito: (idProducto: number) => Promise<void>;
   eliminarFavorito: (idFavorito: number) => Promise<void>;
   esFavorito: (idProducto: number) => boolean;
+  sincronizarConBackend: () => Promise<boolean>; // CAMBIADO a retornar boolean
+  limpiarFavoritosLocales: () => Promise<void>;
 }
 
 const FavoritosContext = createContext<FavoritosContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ const FavoritosContext = createContext<FavoritosContextType | undefined>(undefin
 export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
   const [loadingFavoritos, setLoadingFavoritos] = useState(true);
+  const [estaSincronizado, setEstaSincronizado] = useState(true); // NUEVO ESTADO
 
   useEffect(() => {
     cargarFavoritos();
@@ -32,12 +35,15 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const cargarFavoritos = async () => {
     try {
+      setLoadingFavoritos(true);
+      
       const userStr = await AsyncStorage.getItem("user");
       const token = await AsyncStorage.getItem("authToken");
 
       if (!userStr || !token) {
         console.log("⚠️ Usuario no autenticado para favoritos");
         setFavoritos([]);
+        setEstaSincronizado(false);
         setLoadingFavoritos(false);
         return;
       }
@@ -55,6 +61,7 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!response.ok) {
         console.log("⚠️ No se pudieron cargar favoritos");
         setFavoritos([]);
+        setEstaSincronizado(false);
         setLoadingFavoritos(false);
         return;
       }
@@ -62,10 +69,57 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const data = await response.json();
       console.log("✅ Favoritos cargados:", data.length);
       setFavoritos(data);
+      setEstaSincronizado(true);
       
     } catch (error) {
       console.error("❌ [cargarFavoritos] Error:", error);
       setFavoritos([]);
+      setEstaSincronizado(false);
+    } finally {
+      setLoadingFavoritos(false);
+    }
+  };
+
+  // CAMBIADO: Ahora retorna boolean
+  const sincronizarConBackend = async (): Promise<boolean> => {
+    try {
+      setLoadingFavoritos(true);
+      
+      const userStr = await AsyncStorage.getItem("user");
+      const token = await AsyncStorage.getItem("authToken");
+
+      if (!userStr || !token) {
+        console.log("⚠️ Usuario no autenticado");
+        setEstaSincronizado(false);
+        return false;
+      }
+
+      const user = JSON.parse(userStr);
+      const idConsumidor = user.idConsumidor;
+
+      console.log("🔄 Sincronizando favoritos...");
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/favoritos/listar/${idConsumidor}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) {
+        console.log("⚠️ Error sincronizando favoritos");
+        setEstaSincronizado(false);
+        return false;
+      }
+
+      const data = await response.json();
+      console.log("✅ Favoritos sincronizados:", data.length);
+      setFavoritos(data);
+      setEstaSincronizado(true);
+      return true;
+      
+    } catch (error) {
+      console.error("❌ Error sincronizando con backend:", error);
+      setEstaSincronizado(false);
+      return false;
     } finally {
       setLoadingFavoritos(false);
     }
@@ -152,15 +206,23 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return favoritos.some((f) => f.idProducto === idProducto);
   };
 
+  const limpiarFavoritosLocales = async () => {
+    setFavoritos([]);
+    setEstaSincronizado(false);
+  };
+
   return (
     <FavoritosContext.Provider
       value={{
         favoritos,
         loadingFavoritos,
+        estaSincronizado,
         cargarFavoritos,
         agregarFavorito,
         eliminarFavorito,
         esFavorito,
+        sincronizarConBackend,
+        limpiarFavoritosLocales,
       }}
     >
       {children}
