@@ -1,18 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
@@ -39,6 +43,83 @@ interface Pedido {
   metodoPago?: string;
 }
 
+// 🔥 COMPONENTE DE CÍRCULOS FLOTANTES PREMIUM
+const FloatingCircles = () => {
+  const { width, height } = Dimensions.get('window');
+  
+  return (
+    <View style={styles.floatingContainer}>
+      {/* Círculo grande naranja */}
+      <View style={[styles.floatingCircle, styles.circle1]} />
+      
+      {/* Círculo mediano azul */}
+      <View style={[styles.floatingCircle, styles.circle2]} />
+      
+      {/* Círculo mediano morado */}
+      <View style={[styles.floatingCircle, styles.circle3]} />
+      
+      {/* Círculo pequeño verde */}
+      <View style={[styles.floatingCircle, styles.circle4]} />
+      
+      {/* Círculos adicionales para más efecto */}
+      <View style={[styles.floatingCircle, styles.circle5]} />
+      <View style={[styles.floatingCircle, styles.circle6]} />
+    </View>
+  );
+};
+
+// 🔥 COMPONENTE DE ANIMACIÓN PREMIUM
+interface AnimatedCardProps {
+  children: React.ReactNode;
+  delay?: number;
+}
+
+const AnimatedCard: React.FC<AnimatedCardProps> = ({ children, delay = 0 }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    const slideAnimation = Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 500,
+      delay: delay,
+      useNativeDriver: true,
+    });
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: delay,
+        useNativeDriver: true,
+      }),
+      slideAnimation
+    ]).start();
+  }, [fadeAnim, slideAnim, delay]);
+
+  return (
+    <Animated.View style={{
+      opacity: fadeAnim,
+      transform: [{ translateY: slideAnim }]
+    }}>
+      {children}
+    </Animated.View>
+  );
+};
+
+// 🔥 COMPONENTE DE TARJETA PREMIUM
+const PremiumCard = ({ children, style }: { children: React.ReactNode, style?: any }) => {
+  return (
+    <View style={[styles.premiumCard, style]}>
+      {/* Efecto de brillo */}
+      <View style={styles.cardGlow} />
+      {/* Sombra interna */}
+      <View style={styles.cardInnerShadow} />
+      {children}
+    </View>
+  );
+};
+
 export default function PedidoDetalle() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -47,8 +128,9 @@ export default function PedidoDetalle() {
   const [detalles, setDetalles] = useState<DetallePedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Estados del formulario de pago
+  // Estados del formulario de pago - MEJORADOS
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
   const [comprobante, setComprobante] = useState<any>(null);
@@ -58,74 +140,250 @@ export default function PedidoDetalle() {
   const [titular, setTitular] = useState("");
   const [finalizando, setFinalizando] = useState(false);
 
+  // Animaciones
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const headerSlideAnim = useRef(new Animated.Value(50)).current;
+  const badgeColorAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     cargarPedido();
+    startAnimations();
   }, [id]);
 
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(headerFadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerSlideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    // Animación pulsante del badge
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(badgeColorAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(badgeColorAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  };
+
+  // 🔥 FUNCIÓN MEJORADA PARA CARGAR PEDIDO
   const cargarPedido = async () => {
     const token = await AsyncStorage.getItem("authToken");
     
     if (!token) {
-      router.push("/login" as any);
+      Alert.alert("Sesión requerida", "Debes iniciar sesión para ver el pedido", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Iniciar Sesión", onPress: () => router.push("/login" as any) },
+      ]);
       return;
     }
 
     try {
       setLoading(true);
       
-      const resPedido = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      console.log(`🔄 Cargando pedido #${id}...`);
+      
+      // Intentar diferentes endpoints
+      const endpoints = [
+        `${API_CONFIG.BASE_URL}/pedidos/${id}`,
+        `${API_CONFIG.BASE_URL}/pedido/${id}`,
+        `${API_CONFIG.BASE_URL}/pedidos/detalle/${id}`
+      ];
 
-      if (!resPedido.ok) {
-        throw new Error("No se pudo cargar el pedido");
+      let pedidoData = null;
+      let detallesData = [];
+
+      // Buscar pedido
+      for (const endpoint of endpoints) {
+        try {
+          const resPedido = await fetch(endpoint, {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+          });
+
+          if (resPedido.ok) {
+            pedidoData = await resPedido.json();
+            console.log("✅ Pedido cargado desde:", endpoint);
+            break;
+          }
+        } catch (error) {
+          console.log(`❌ Error en endpoint ${endpoint}:`, error);
+        }
       }
 
-      const dataPedido = await resPedido.json();
-
-      const resDetalles = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${id}/detalles`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!resDetalles.ok) {
-        throw new Error("No se pudieron cargar los detalles");
+      if (!pedidoData) {
+        throw new Error("No se pudo cargar el pedido desde ningún endpoint");
       }
 
-      const dataDetalles = await resDetalles.json();
+      // Cargar detalles del pedido
+      try {
+        const resDetalles = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedidoData.idPedido}/detalles`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        });
 
-      setPedido(dataPedido);
-      setDetalles(dataDetalles);
+        if (resDetalles.ok) {
+          detallesData = await resDetalles.json();
+          console.log("✅ Detalles cargados:", detallesData.length, "productos");
+        } else {
+          // Si no hay endpoint de detalles, intentar obtenerlos de otra forma
+          const detallesAlternativo = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedidoData.idPedido}/items`, {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+          });
+          
+          if (detallesAlternativo.ok) {
+            detallesData = await detallesAlternativo.json();
+          }
+        }
+      } catch (detallesError) {
+        console.log("⚠️ No se pudieron cargar los detalles:", detallesError);
+        // Continuar sin detalles si hay error
+      }
+
+      setPedido(pedidoData);
+      setDetalles(detallesData || []);
+      
+      // Si el pedido ya tiene método de pago, establecerlo
+      if (pedidoData.metodoPago && !pedidoFinalizado(pedidoData)) {
+        setMetodoPago(pedidoData.metodoPago);
+      }
+      
     } catch (err: any) {
-      console.error("❌ Error:", err);
-      setError(err.message);
+      console.error("❌ Error completo:", err);
+      setError(err.message || "Error desconocido al cargar el pedido");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const seleccionarArchivo = async () => {
+  const pedidoFinalizado = (pedido: Pedido) => {
+    return pedido.estadoPedido === "COMPLETADO" ||
+           pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
+           pedido.estadoPedido === "PROCESANDO" ||
+           pedido.estadoPedido === "ENVIADO";
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    cargarPedido();
+  }, []);
+
+  // 🔥 FUNCIÓN MEJORADA PARA SELECCIONAR COMPROBANTE
+  const seleccionarComprobante = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "application/pdf"],
-      });
-
-      // ✅ CORRECCIÓN: La nueva API usa 'canceled' en lugar de 'type'
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        setComprobante(file);
-        Alert.alert("Archivo seleccionado", file.name || "Comprobante cargado");
+      // Solicitar permisos para acceder a la galería
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permiso necesario', 'Se necesita acceso a la galería para subir comprobantes');
+        return;
       }
+
+      // Mostrar opciones al usuario
+      Alert.alert(
+        'Seleccionar comprobante',
+        '¿Cómo quieres subir el comprobante?',
+        [
+          {
+            text: 'Cámara',
+            onPress: async () => {
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                setComprobante(result.assets[0]);
+                Alert.alert("✅ Comprobante seleccionado", "Imagen tomada con éxito");
+              }
+            }
+          },
+          {
+            text: 'Galería',
+            onPress: async () => {
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                setComprobante(result.assets[0]);
+                Alert.alert("✅ Comprobante seleccionado", "Imagen seleccionada con éxito");
+              }
+            }
+          },
+          {
+            text: 'Documento (PDF)',
+            onPress: async () => {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'image/*'],
+                copyToCacheDirectory: true,
+              });
+
+              if (!result.canceled && result.assets[0]) {
+                setComprobante(result.assets[0]);
+                Alert.alert("✅ Comprobante seleccionado", "Documento seleccionado con éxito");
+              }
+            }
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
     } catch (error) {
-      console.error("Error seleccionando archivo:", error);
-      Alert.alert("Error", "No se pudo seleccionar el archivo");
+      console.error('Error seleccionando comprobante:', error);
+      Alert.alert('Error', 'No se pudo seleccionar el archivo');
     }
   };
 
+  // 🔥 FUNCIÓN MEJORADA PARA VALIDAR FORMULARIO
   const validarFormulario = (): boolean => {
+    if (!pedido) return false;
+
     if (metodoPago === "EFECTIVO") {
-      if (montoEfectivo && parseFloat(montoEfectivo) < pedido!.total) {
-        Alert.alert("Error", "El monto debe ser mayor o igual al total del pedido");
-        return false;
+      if (montoEfectivo) {
+        // Convertir coma decimal a punto decimal
+        const montoLimpio = montoEfectivo.replace(',', '.');
+        const montoNum = parseFloat(montoLimpio);
+        
+        if (isNaN(montoNum)) {
+          Alert.alert("Error", "Monto inválido");
+          return false;
+        }
+        
+        if (montoNum < pedido.total) {
+          Alert.alert("Error", `El monto debe ser mayor o igual al total ($${pedido.total.toFixed(2).replace('.', ',')})`);
+          return false;
+        }
       }
       return true;
     }
@@ -135,23 +393,50 @@ export default function PedidoDetalle() {
         Alert.alert("Error", "Debes subir el comprobante de transferencia");
         return false;
       }
+      
+      // Validar tamaño máximo (5MB)
+      if (comprobante.fileSize && comprobante.fileSize > 5 * 1024 * 1024) {
+        Alert.alert("Error", "El archivo es muy grande. Máximo 5MB");
+        return false;
+      }
+      
+      // Validar tipo de archivo
+      const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      const tipoArchivo = comprobante.mimeType || comprobante.type;
+      
+      if (tipoArchivo && !tiposPermitidos.includes(tipoArchivo.toLowerCase())) {
+        Alert.alert("Error", "Solo se permiten imágenes JPG, PNG o PDF");
+        return false;
+      }
     }
 
     if (metodoPago === "TARJETA") {
-      if (!numTarjeta || numTarjeta.replace(/\s/g, "").length < 15) {
+      // Limpiar espacios del número de tarjeta
+      const tarjetaLimpia = numTarjeta.replace(/\s/g, "");
+      
+      if (!tarjetaLimpia || tarjetaLimpia.length < 15 || tarjetaLimpia.length > 16) {
+        Alert.alert("Error", "Número de tarjeta inválido (debe tener 15-16 dígitos)");
+        return false;
+      }
+      
+      // Validar algoritmo de Luhn para tarjeta
+      if (!validarTarjetaLuhn(tarjetaLimpia)) {
         Alert.alert("Error", "Número de tarjeta inválido");
         return false;
       }
-      if (!cvv || cvv.length < 3) {
-        Alert.alert("Error", "CVV inválido");
+      
+      if (!cvv || cvv.length < 3 || cvv.length > 4) {
+        Alert.alert("Error", "CVV inválido (debe tener 3-4 dígitos)");
         return false;
       }
-      if (!fechaTarjeta) {
-        Alert.alert("Error", "Fecha de expiración requerida");
+      
+      if (!fechaTarjeta || !validarFechaExpiracion(fechaTarjeta)) {
+        Alert.alert("Error", "Fecha de expiración inválida o vencida");
         return false;
       }
-      if (!titular.trim()) {
-        Alert.alert("Error", "Nombre del titular requerido");
+      
+      if (!titular.trim() || titular.length < 3) {
+        Alert.alert("Error", "Nombre del titular requerido (mínimo 3 caracteres)");
         return false;
       }
     }
@@ -159,76 +444,129 @@ export default function PedidoDetalle() {
     return true;
   };
 
-  const finalizarCompra = async () => {
-    if (!validarFormulario()) return;
-
-    const token = await AsyncStorage.getItem("authToken");
-    if (!token) {
-      router.push("/login" as any);
-      return;
+  // 🔥 FUNCIÓN PARA VALIDAR ALGORITMO DE LUHN
+  const validarTarjetaLuhn = (numero: string): boolean => {
+    let suma = 0;
+    let par = false;
+    
+    for (let i = numero.length - 1; i >= 0; i--) {
+      let digito = parseInt(numero.charAt(i), 10);
+      
+      if (par) {
+        digito *= 2;
+        if (digito > 9) digito -= 9;
+      }
+      
+      suma += digito;
+      par = !par;
     }
-
-    if (metodoPago === "EFECTIVO") {
-      Alert.alert(
-        "⚠️ IMPORTANTE - Pago en Efectivo",
-        `• Total a pagar: $${pedido!.total.toFixed(2)}\n` +
-        `• Pagarás al recibir el pedido\n` +
-        `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
-        `• El vendedor preparará tu pedido de inmediato\n\n` +
-        `¿Confirmas tu pedido?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          { 
-            text: "Confirmar", 
-            onPress: async () => await procesarPago(token),
-            style: "default"
-          },
-        ]
-      );
-      return;
-    } else {
-      Alert.alert(
-        "Confirmar pedido",
-        `¿Confirmar pedido por $${pedido!.total.toFixed(2)} con ${metodoPago}?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          { 
-            text: "Confirmar", 
-            onPress: async () => await procesarPago(token),
-            style: "default"
-          },
-        ]
-      );
-      return;
-    }
+    
+    return suma % 10 === 0;
   };
 
-  const procesarPago = async (token: string) => {
+  // 🔥 FUNCIÓN PARA VALIDAR FECHA DE EXPIRACIÓN
+  const validarFechaExpiracion = (fecha: string): boolean => {
+    const regex = /^(0[1-9]|1[0-2])\/([0-9]{2})$/;
+    if (!regex.test(fecha)) return false;
+    
+    const [mes, anio] = fecha.split('/').map(Number);
+    const ahora = new Date();
+    const anioActual = ahora.getFullYear() % 100;
+    const mesActual = ahora.getMonth() + 1;
+    
+    // Validar que no esté vencida
+    if (anio < anioActual) return false;
+    if (anio === anioActual && mes < mesActual) return false;
+    
+    // Validar que no sea más de 10 años en el futuro
+    if (anio > anioActual + 10) return false;
+    
+    return true;
+  };
+
+  // 🔥 FUNCIÓN MEJORADA PARA FINALIZAR COMPRA
+  const finalizarCompra = async () => {
+    if (!pedido || !validarFormulario()) return;
+
+    const token = await AsyncStorage.getItem("authToken");
+    const userData = await AsyncStorage.getItem("user");
+    const user = userData ? JSON.parse(userData) : null;
+
+    if (!token) {
+      Alert.alert("Sesión requerida", "Debes iniciar sesión para realizar el pago", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Iniciar Sesión", onPress: () => router.push("/login" as any) },
+      ]);
+      return;
+    }
+
+    // Confirmación según método de pago
+    let confirmar;
+    if (metodoPago === "EFECTIVO") {
+      confirmar = await new Promise((resolve) => {
+        Alert.alert(
+          "⚠️ IMPORTANTE - Pago en Efectivo",
+          `• Total a pagar: $${pedido.total.toFixed(2).replace('.', ',')}\n` +
+          `• Pagarás al recibir el pedido\n` +
+          `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
+          `• El vendedor preparará tu pedido de inmediato\n\n` +
+          `¿Confirmas tu pedido?`,
+          [
+            { text: "No", onPress: () => resolve(false), style: "cancel" },
+            { text: "Sí, confirmar", onPress: () => resolve(true), style: "default" },
+          ]
+        );
+      });
+    } else {
+      confirmar = await new Promise((resolve) => {
+        Alert.alert(
+          "Confirmar pago",
+          `¿Confirmar pago de $${pedido.total.toFixed(2).replace('.', ',')} con ${metodoPago}?\n\n` +
+          `Pedido #${pedido.idPedido}`,
+          [
+            { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
+            { text: "Confirmar", onPress: () => resolve(true), style: "default" },
+          ]
+        );
+      });
+    }
+
+    if (!confirmar) return;
+
     setFinalizando(true);
 
     try {
+      console.log("\n💰 INICIANDO PROCESO DE PAGO");
+      console.log("📦 Pedido ID:", pedido.idPedido);
+      console.log("💳 Método de pago:", metodoPago);
+      console.log("💰 Total:", pedido.total);
+
+      // Preparar datos para el pago
       let body;
       let headers: any = {
         Authorization: `Bearer ${token}`,
       };
 
-      // 🔥 MANEJO CORRECTO SEGÚN MÉTODO DE PAGO
       if (metodoPago === "EFECTIVO") {
         headers["Content-Type"] = "application/json";
         
-        const montoFinal = montoEfectivo && parseFloat(montoEfectivo) >= pedido!.total
-          ? parseFloat(montoEfectivo)
-          : pedido!.total;
+        // Convertir coma decimal a punto decimal
+        let montoFinal = pedido.total;
+        if (montoEfectivo) {
+          const montoLimpio = montoEfectivo.replace(',', '.');
+          const montoNum = parseFloat(montoLimpio);
+          
+          if (!isNaN(montoNum) && montoNum >= pedido.total) {
+            montoFinal = montoNum;
+          }
+        }
         
         body = JSON.stringify({
           metodoPago: "EFECTIVO",
           montoEfectivo: montoFinal
         });
         
-        console.log("💵 EFECTIVO - Enviando:", {
-          metodoPago: "EFECTIVO",
-          montoEfectivo: montoFinal
-        });
+        console.log("💵 Monto final:", montoFinal);
         
       } else if (metodoPago === "TRANSFERENCIA") {
         const formData = new FormData();
@@ -237,7 +575,7 @@ export default function PedidoDetalle() {
         if (comprobante) {
           const fileUri = comprobante.uri;
           const fileName = comprobante.name || "comprobante.jpg";
-          const fileType = comprobante.mimeType || "image/jpeg";
+          const fileType = comprobante.mimeType || comprobante.type || "image/jpeg";
 
           formData.append("comprobante", {
             uri: Platform.OS === "ios" ? fileUri.replace("file://", "") : fileUri,
@@ -245,9 +583,8 @@ export default function PedidoDetalle() {
             type: fileType,
           } as any);
           
-          console.log("🏦 TRANSFERENCIA - Archivo:", fileName);
+          console.log("🏦 Archivo adjunto:", fileName);
         }
-        
         body = formData;
         
       } else if (metodoPago === "TARJETA") {
@@ -257,99 +594,198 @@ export default function PedidoDetalle() {
         formData.append("cvv", cvv);
         formData.append("fechaTarjeta", fechaTarjeta);
         formData.append("titular", titular);
-        
         body = formData;
-        console.log("💳 TARJETA - Datos enviados");
+        console.log("💳 Datos de tarjeta enviados");
       }
 
-      const url = `${API_CONFIG.BASE_URL}/pedidos/finalizar/${id}`;
-      console.log("🔵 URL:", url);
-      console.log("🔵 Método de pago:", metodoPago);
+      // Intentar diferentes endpoints para procesar el pago
+      const endpoints = [
+        `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedido.idPedido}`,
+        `${API_CONFIG.BASE_URL}/pedidos/${pedido.idPedido}/pagar`,
+        `${API_CONFIG.BASE_URL}/pedidos/${pedido.idPedido}/procesar-pago`
+      ];
 
-      const res = await fetch(url, {
-        method: "PUT",
-        headers: headers,
-        body: body,
-      });
+      let response = null;
+      let data = null;
 
-      console.log("📥 Status de respuesta:", res.status);
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔗 Intentando endpoint: ${endpoint}`);
+          
+          const res = await fetch(endpoint, {
+            method: "PUT",
+            headers: headers,
+            body: body,
+          });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("❌ Error del servidor:", errorText);
-        throw new Error(errorText || "No se pudo finalizar el pedido");
+          console.log("📤 Status:", res.status);
+          console.log("📤 OK?", res.ok);
+
+          if (res.ok) {
+            data = await res.json();
+            response = res;
+            console.log("✅ Pago procesado en:", endpoint);
+            break;
+          } else if (res.status === 400 || res.status === 404) {
+            // Intentar con POST si PUT falla
+            console.log("🔄 Intentando con POST...");
+            const resPost = await fetch(endpoint, {
+              method: "POST",
+              headers: headers,
+              body: body,
+            });
+
+            if (resPost.ok) {
+              data = await resPost.json();
+              response = resPost;
+              console.log("✅ Pago procesado con POST en:", endpoint);
+              break;
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error en endpoint ${endpoint}:`, error);
+        }
       }
 
-      const data = await res.json();
-      console.log("✅ Respuesta exitosa:", data);
+      if (!response || !data) {
+        throw new Error("No se pudo procesar el pago en ningún endpoint");
+      }
 
-      // ✅ Éxito - Mostrar mensaje apropiado según el método de pago
+      console.log("✅ Pago procesado exitosamente:", data);
+
+      // Mostrar éxito según método de pago
       if (metodoPago === "EFECTIVO") {
         Alert.alert(
           "🎉 ¡Pedido confirmado!",
-          `Pagarás $${pedido!.total.toFixed(2)} en efectivo al recibir tu pedido.\n` +
-          `El vendedor está preparando tu orden.`
+          `Tu pedido #${pedido.idPedido} ha sido confirmado.\n` +
+          `Pagarás $${pedido.total.toFixed(2).replace('.', ',')} en efectivo al recibir tu pedido.\n\n` +
+          `El vendedor está preparando tu orden.`,
+          [
+            {
+              text: "Ver mi pedido",
+              onPress: () => {
+                // Recargar para ver estado actualizado
+                cargarPedido();
+              },
+            },
+            {
+              text: "Volver al inicio",
+              onPress: () => {
+                router.push("/(tabs)/explorar" as any);
+              },
+            },
+          ]
         );
       } else {
-        Alert.alert("🎉 ¡Compra finalizada con éxito!");
+        Alert.alert(
+          "🎉 ¡Pago exitoso!",
+          `Tu pago de $${pedido.total.toFixed(2).replace('.', ',')} ha sido procesado correctamente.\n` +
+          `Pedido #${pedido.idPedido}`,
+          [
+            {
+              text: "Ver detalles",
+              onPress: () => {
+                // Recargar para ver estado actualizado
+                cargarPedido();
+              },
+            },
+            {
+              text: "Continuar",
+              style: "default",
+            },
+          ]
+        );
       }
 
-      // Recargar el pedido actualizado
+      // Recargar datos del pedido
       await cargarPedido();
 
     } catch (err: any) {
-      console.error("❌ Error completo:", err);
-      Alert.alert("Error al finalizar pedido", err.message);
+      console.error("\n❌ ERROR COMPLETO EN PAGO:");
+      console.error("❌ Mensaje:", err.message);
+      console.error("❌ Stack:", err.stack);
+      
+      Alert.alert(
+        "❌ Error al procesar el pago",
+        `${err.message || "Error desconocido"}\n\n` +
+        `Por favor, verifica:\n` +
+        `1. Tu conexión a internet\n` +
+        `2. Los datos ingresados\n` +
+        `3. Intenta nuevamente`
+      );
     } finally {
       setFinalizando(false);
     }
   };
 
-  const confirmarSalir = () => {
+  // 🔥 FUNCIÓN PARA CANCELAR PEDIDO
+  const cancelarPedido = async () => {
     if (!pedido) return;
 
-    const pedidoFinalizado =
-      pedido.estadoPedido === "COMPLETADO" ||
-      pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
-      pedido.estadoPedido === "PROCESANDO";
-
-    if (pedidoFinalizado) {
-      router.back();
+    const token = await AsyncStorage.getItem("authToken");
+    if (!token) {
+      router.push("/login" as any);
       return;
     }
 
-    // ⚠️ SOLO checkout + pendiente puede cancelar
-    Alert.alert(
-      "Cancelar pedido",
-      "¿Estás seguro de cancelar este pedido? Los productos volverán al carrito.",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Sí, cancelar",
-          style: "destructive",
-          onPress: async () => {
-            const token = await AsyncStorage.getItem("authToken");
-            try {
-              await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedido.idPedido}/cancelar`, {
-                method: "PUT",
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              router.back();
-            } catch (err) {
-              console.error("Error cancelando pedido:", err);
-              router.back();
-            }
+    const confirmar = await new Promise((resolve) => {
+      Alert.alert(
+        "Cancelar pedido",
+        "¿Estás seguro de cancelar este pedido?\n\n" +
+        "Esta acción no se puede deshacer.",
+        [
+          { text: "No, mantener", onPress: () => resolve(false), style: "cancel" },
+          { 
+            text: "Sí, cancelar", 
+            onPress: () => resolve(true), 
+            style: "destructive" 
           },
+        ]
+      );
+    });
+
+    if (!confirmar) return;
+
+    try {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedido.idPedido}/cancelar`, {
+        method: "PUT",
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-      ]
-    );
+      });
+
+      if (res.ok) {
+        Alert.alert(
+          "✅ Pedido cancelado",
+          "El pedido ha sido cancelado exitosamente.",
+          [
+            {
+              text: "Volver",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        throw new Error("No se pudo cancelar el pedido");
+      }
+    } catch (err: any) {
+      console.error("Error cancelando pedido:", err);
+      Alert.alert("❌ Error", "No se pudo cancelar el pedido");
+    }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6b8e4e" />
-        <Text style={styles.loadingText}>Cargando pedido...</Text>
+        <FloatingCircles />
+        <ActivityIndicator size="large" color="#FF6B35" />
+        <Text style={styles.loadingText}>Cargando detalles del pedido...</Text>
+        <View style={styles.loadingCircles}>
+          <View style={[styles.loadingCircle, { backgroundColor: '#FF6B35' }]} />
+          <View style={[styles.loadingCircle, { backgroundColor: '#3498DB' }]} />
+          <View style={[styles.loadingCircle, { backgroundColor: '#2ECC71' }]} />
+        </View>
       </View>
     );
   }
@@ -357,280 +793,711 @@ export default function PedidoDetalle() {
   if (error || !pedido) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>❌</Text>
-        <Text style={styles.errorTitle}>Error al cargar pedido</Text>
-        <Text style={styles.errorText}>{error || "No se encontró el pedido"}</Text>
-        <TouchableOpacity
-          style={styles.errorButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.errorButtonText}>Volver</Text>
-        </TouchableOpacity>
+        <FloatingCircles />
+        <View style={styles.errorContent}>
+          <Text style={styles.errorIcon}>❌</Text>
+          <Text style={styles.errorTitle}>Error al cargar pedido</Text>
+          <Text style={styles.errorText}>
+            {error || "No se encontró el pedido"}
+          </Text>
+          <View style={styles.errorButtons}>
+            <TouchableOpacity 
+              style={styles.primaryButton}
+              onPress={() => cargarPedido()}
+            >
+              <Text style={styles.primaryButtonText}>🔄 Reintentar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.secondaryButtonText}>← Volver</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   }
 
-  const estadoColors: Record<string, string> = {
-    PENDIENTE: "#F4B419",
-    PENDIENTE_VERIFICACION: "#F4B419",
-    PROCESANDO: "#4A90E2",
-    COMPLETADO: "#5A8F48",
-    CANCELADO: "#E74C3C",
+  const estadoColors: Record<string, { color: string, icon: string, gradient: string[] }> = {
+    PENDIENTE: { 
+      color: "#FF6B35", 
+      icon: "⏳",
+      gradient: ["#FF6B35", "#FF8E53"]
+    },
+    PENDIENTE_VERIFICACION: { 
+      color: "#F4B419", 
+      icon: "🔍",
+      gradient: ["#F4B419", "#F7C948"]
+    },
+    PROCESANDO: { 
+      color: "#3498DB", 
+      icon: "⚙️",
+      gradient: ["#3498DB", "#5DADE2"]
+    },
+    COMPLETADO: { 
+      color: "#2ECC71", 
+      icon: "✅",
+      gradient: ["#2ECC71", "#58D68D"]
+    },
+    CANCELADO: { 
+      color: "#E74C3C", 
+      icon: "❌",
+      gradient: ["#E74C3C", "#EC7063"]
+    },
+    ENVIADO: { 
+      color: "#9B59B6", 
+      icon: "🚚",
+      gradient: ["#9B59B6", "#AF7AC5"]
+    },
   };
 
-  const pedidoFinalizado =
-    pedido.estadoPedido === "COMPLETADO" ||
-    pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
-    pedido.estadoPedido === "PROCESANDO";
+  const pedidoCompletado = pedidoFinalizado(pedido);
+  const estadoInfo = estadoColors[pedido.estadoPedido] || { 
+    color: "#6B7F69", 
+    icon: "❓",
+    gradient: ["#6B7F69", "#839982"]
+  };
+
+  const badgeBackgroundColor = badgeColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: estadoInfo.gradient
+  });
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#FF6B35"]}
+          tintColor="#FF6B35"
+          progressBackgroundColor="white"
+        />
+      }
+    >
+      {/* 🔥 HEADER PREMIUM */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: headerFadeAnim,
+            transform: [{ translateY: headerSlideAnim }]
+          }
+        ]}
+      >
+        <FloatingCircles />
+        
+        {/* Botón de volver premium */}
+        <TouchableOpacity 
           style={styles.backButton}
-          onPress={confirmarSalir}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
         >
-          <Text style={styles.backButtonText}>
-            {pedidoFinalizado ? "← Volver" : "← Cancelar y volver"}
-          </Text>
+          <View style={styles.backButtonCircle}>
+            <Text style={styles.backButtonIcon}>←</Text>
+            <View style={styles.backButtonGlow} />
+          </View>
+          <Text style={styles.backButtonText}>Volver</Text>
         </TouchableOpacity>
 
-        <View style={styles.headerCard}>
-          <View style={styles.headerLeft}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>📦</Text>
+        <View style={styles.headerContent}>
+          {/* Avatar del pedido */}
+          <View style={styles.avatarContainer}>
+            <View style={[styles.avatar, { 
+              backgroundColor: estadoInfo.color,
+              shadowColor: estadoInfo.color 
+            }]}>
+              <Text style={styles.avatarText}>#{pedido.idPedido}</Text>
+              <View style={[styles.avatarRing, { 
+                borderColor: `${estadoInfo.color}40`
+              }]} />
+              <View style={styles.avatarGlow} />
+              <View style={styles.avatarShine} />
             </View>
-            <View>
-              <Text style={styles.pedidoTitle}>Pedido #{pedido.idPedido}</Text>
-              <Text style={styles.fechaText}>
-                📅 {new Date(pedido.fechaPedido).toLocaleDateString("es-ES", {
+            
+            {/* Badge con gradiente animado */}
+            <Animated.View 
+              style={[
+                styles.estadoBadge,
+                { backgroundColor: badgeBackgroundColor }
+              ]}
+            >
+              <Text style={styles.estadoBadgeIcon}>{estadoInfo.icon}</Text>
+              <Text style={styles.estadoBadgeText}>{pedido.estadoPedido}</Text>
+            </Animated.View>
+          </View>
+
+          {/* Títulos con efecto */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerLabel}>DETALLE DE PEDIDO</Text>
+            <View style={styles.titleLine} />
+            <Text style={styles.headerTitle}>Pedido #{pedido.idPedido}</Text>
+          </View>
+          
+          {/* Info badges con efectos */}
+          <View style={styles.infoBadgesContainer}>
+            <PremiumCard style={styles.infoBadge}>
+              <View style={styles.infoBadgeIconContainer}>
+                <Text style={styles.infoBadgeIcon}>📅</Text>
+              </View>
+              <Text style={styles.infoBadgeText}>
+                {new Date(pedido.fechaPedido).toLocaleDateString("es-ES", {
                   year: "numeric",
-                  month: "long",
+                  month: "short",
                   day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
                 })}
               </Text>
-            </View>
-          </View>
-          <View
-            style={[
-              styles.estadoBadge,
-              { backgroundColor: estadoColors[pedido.estadoPedido] || "#6B7F69" },
-            ]}
-          >
-            <Text style={styles.estadoText}>{pedido.estadoPedido}</Text>
-          </View>
-        </View>
-      </View>
+            </PremiumCard>
 
-      {/* Productos */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🛒 Productos del pedido</Text>
-        {detalles.map((detalle, index) => (
-          <View key={index} style={styles.productoCard}>
-            {detalle.producto?.imagenProducto && (
-              <Image
-                source={{ uri: detalle.producto.imagenProducto }}
-                style={styles.productoImage}
-              />
+            {pedido.metodoPago && (
+              <PremiumCard style={styles.infoBadge}>
+                <View style={styles.infoBadgeIconContainer}>
+                  <Text style={styles.infoBadgeIcon}>
+                    {pedido.metodoPago === "EFECTIVO" && "💵"}
+                    {pedido.metodoPago === "TRANSFERENCIA" && "🏦"}
+                    {pedido.metodoPago === "TARJETA" && "💳"}
+                  </Text>
+                </View>
+                <Text style={styles.infoBadgeText}>{pedido.metodoPago}</Text>
+              </PremiumCard>
             )}
-            <View style={styles.productoInfo}>
-              <Text style={styles.productoNombre}>
-                {detalle.producto?.nombreProducto || "Producto"}
-              </Text>
-              <Text style={styles.productoDetalle}>
-                Cantidad: {detalle.cantidad} • ${(detalle.subtotal / detalle.cantidad).toFixed(2)} c/u
-              </Text>
-            </View>
-            <Text style={styles.productoSubtotal}>${detalle.subtotal.toFixed(2)}</Text>
           </View>
-        ))}
-      </View>
+        </View>
+      </Animated.View>
 
-      {/* Resumen */}
-      <View style={styles.resumenCard}>
-        <Text style={styles.sectionTitle}>💰 Resumen del pedido</Text>
-        
-        <View style={styles.resumenRow}>
-          <Text style={styles.resumenLabel}>Subtotal</Text>
-          <Text style={styles.resumenValue}>${pedido.subtotal.toFixed(2)}</Text>
+      {/* 🔥 PRODUCTOS DEL PEDIDO */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Productos en tu pedido</Text>
+          <Text style={styles.sectionSubtitle}>Artículos seleccionados</Text>
+          <View style={styles.sectionUnderline} />
         </View>
         
-        <View style={styles.resumenRow}>
-          <Text style={styles.resumenLabel}>IVA (12%)</Text>
-          <Text style={styles.resumenValue}>${pedido.iva.toFixed(2)}</Text>
-        </View>
+        {detalles.length === 0 ? (
+          <AnimatedCard delay={100}>
+            <PremiumCard style={styles.emptyCard}>
+              <Text style={styles.emptyIcon}>🛒</Text>
+              <Text style={styles.emptyTitle}>No hay productos</Text>
+              <Text style={styles.emptyText}>Este pedido no contiene productos</Text>
+            </PremiumCard>
+          </AnimatedCard>
+        ) : (
+          <PremiumCard style={styles.productsCard}>
+            {detalles.map((detalle, index) => (
+              <AnimatedCard key={detalle.idDetalle || index} delay={100 + (index * 100)}>
+                <View style={styles.productItem}>
+                  {/* Imagen */}
+                  <View style={styles.productImageContainer}>
+                    {detalle.producto?.imagenProducto ? (
+                      <Image
+                        source={{ uri: detalle.producto.imagenProducto }}
+                        style={styles.productImage}
+                      />
+                    ) : (
+                      <View style={styles.productImagePlaceholder}>
+                        <Text style={styles.productImagePlaceholderIcon}>🛍️</Text>
+                        <Text style={styles.productImagePlaceholderText}>Producto</Text>
+                      </View>
+                    )}
+                    <View style={styles.productImageBorder} />
+                    <View style={styles.productImageGlow} />
+                  </View>
 
-        {pedidoFinalizado && pedido.metodoPago && (
-          <View style={styles.resumenRow}>
-            <Text style={styles.resumenLabel}>Método de pago</Text>
-            <Text style={styles.resumenValue}>
-              {pedido.metodoPago === "EFECTIVO" && "💵 Efectivo"}
-              {pedido.metodoPago === "TRANSFERENCIA" && "🏦 Transferencia"}
-              {pedido.metodoPago === "TARJETA" && "💳 Tarjeta"}
-            </Text>
-          </View>
-        )}
-        
-        <View style={styles.divider} />
-        
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>${pedido.total.toFixed(2)}</Text>
-        </View>
-      </View>
+                  {/* Info del producto */}
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {detalle.producto?.nombreProducto || "Producto"}
+                    </Text>
+                    
+                    <View style={styles.productMeta}>
+                      <View style={styles.quantityBadge}>
+                        <Text style={styles.quantityBadgeIcon}>📦</Text>
+                        <Text style={styles.quantityBadgeText}>x{detalle.cantidad}</Text>
+                      </View>
+                      
+                      <View style={styles.priceBadge}>
+                        <Text style={styles.priceBadgeText}>
+                          ${(detalle.subtotal / detalle.cantidad).toFixed(2)} c/u
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
 
-      {/* Formulario de pago (solo si está pendiente) */}
-      {!pedidoFinalizado && (
-        <View style={styles.pagoSection}>
-          <Text style={styles.sectionTitle}>💳 Método de pago</Text>
-          
-          <View style={styles.metodosPago}>
-            {["EFECTIVO", "TRANSFERENCIA", "TARJETA"].map((metodo) => (
-              <TouchableOpacity
-                key={metodo}
-                style={[
-                  styles.metodoButton,
-                  metodoPago === metodo && styles.metodoButtonActive,
-                ]}
-                onPress={() => setMetodoPago(metodo)}
-              >
-                <Text
-                  style={[
-                    styles.metodoButtonText,
-                    metodoPago === metodo && styles.metodoButtonTextActive,
-                  ]}
-                >
-                  {metodo === "EFECTIVO" && "💵 Efectivo"}
-                  {metodo === "TRANSFERENCIA" && "🏦 Transferencia"}
-                  {metodo === "TARJETA" && "💳 Tarjeta"}
-                </Text>
-              </TouchableOpacity>
+                  {/* Precio */}
+                  <View style={styles.productPriceContainer}>
+                    <Text style={styles.productPriceCurrency}>$</Text>
+                    <Text style={styles.productPrice}>{detalle.subtotal.toFixed(2)}</Text>
+                  </View>
+                </View>
+                {index < detalles.length - 1 && <View style={styles.productDivider} />}
+              </AnimatedCard>
             ))}
+          </PremiumCard>
+        )}
+      </View>
+
+      {/* 🔥 RESUMEN DE PAGO */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Resumen de compra</Text>
+          <Text style={styles.sectionSubtitle}>Detalles financieros</Text>
+          <View style={styles.sectionUnderline} />
+        </View>
+        
+        <AnimatedCard delay={200}>
+          <PremiumCard style={styles.paymentCard}>
+            <View style={styles.paymentRow}>
+              <View style={styles.paymentLabelContainer}>
+                <View style={[styles.paymentIconContainer, { backgroundColor: '#FFF2E8' }]}>
+                  <Text style={[styles.paymentIcon, { color: '#FF6B35' }]}>💰</Text>
+                </View>
+                <Text style={styles.paymentLabel}>Subtotal</Text>
+              </View>
+              <View style={styles.paymentValueContainer}>
+                <Text style={styles.paymentValueCurrency}>$</Text>
+                <Text style={styles.paymentValue}>{pedido.subtotal.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.paymentRow}>
+              <View style={styles.paymentLabelContainer}>
+                <View style={[styles.paymentIconContainer, { backgroundColor: '#E8F4FD' }]}>
+                  <Text style={[styles.paymentIcon, { color: '#3498DB' }]}>🧾</Text>
+                </View>
+                <Text style={styles.paymentLabel}>IVA (12%)</Text>
+              </View>
+              <View style={styles.paymentValueContainer}>
+                <Text style={styles.paymentValueCurrency}>$</Text>
+                <Text style={styles.paymentValue}>{pedido.iva.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {pedido.metodoPago && (
+              <View style={styles.paymentRow}>
+                <View style={styles.paymentLabelContainer}>
+                  <View style={[styles.paymentIconContainer, { backgroundColor: '#F0F4FF' }]}>
+                    <Text style={[styles.paymentIcon, { color: '#9B59B6' }]}>
+                      {pedido.metodoPago === "EFECTIVO" && "💵"}
+                      {pedido.metodoPago === "TRANSFERENCIA" && "🏦"}
+                      {pedido.metodoPago === "TARJETA" && "💳"}
+                    </Text>
+                  </View>
+                  <Text style={styles.paymentLabel}>Método de pago</Text>
+                </View>
+                <View style={styles.paymentValueContainer}>
+                  <Text style={styles.paymentValue}>{pedido.metodoPago}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Línea divisora */}
+            <View style={styles.paymentDivider}>
+              <View style={styles.paymentDividerLine} />
+              <View style={styles.paymentDividerDots}>
+                <View style={styles.paymentDividerDot} />
+                <View style={styles.paymentDividerDot} />
+                <View style={styles.paymentDividerDot} />
+              </View>
+            </View>
+
+            {/* Total */}
+            <View style={styles.paymentTotalRow}>
+              <View style={styles.paymentLabelContainer}>
+                <View style={[styles.paymentIconContainer, styles.paymentTotalIconContainer]}>
+                  <Text style={[styles.paymentIcon, styles.paymentTotalIcon]}>💵</Text>
+                </View>
+                <Text style={styles.paymentTotalLabel}>Total</Text>
+              </View>
+              <View style={styles.paymentTotalValueContainer}>
+                <Text style={styles.paymentTotalCurrency}>$</Text>
+                <Text style={styles.paymentTotal}>{pedido.total.toFixed(2)}</Text>
+              </View>
+            </View>
+          </PremiumCard>
+        </AnimatedCard>
+      </View>
+
+      {/* 🔥 SECCIÓN DE PAGO (SOLO SI NO ESTÁ COMPLETADO) */}
+      {!pedidoCompletado && pedido.estadoPedido === "PENDIENTE" && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Completar Pago</Text>
+            <Text style={styles.sectionSubtitle}>Selecciona cómo deseas pagar</Text>
+            <View style={styles.sectionUnderline} />
           </View>
-
-          {/* Formularios según método de pago */}
-          {metodoPago === "EFECTIVO" && (
-            <View style={styles.formContainer}>
-              <View style={styles.alertBox}>
-                <Text style={styles.alertText}>
-                  💵 <Text style={styles.alertTextBold}>Pago contra entrega</Text>
-                  {"\n"}Pagarás <Text style={styles.alertTextBold}>${pedido.total.toFixed(2)}</Text> en efectivo cuando recibas tu pedido.
-                </Text>
+          
+          <AnimatedCard delay={300}>
+            <PremiumCard style={styles.paymentMethodCard}>
+              {/* Selector de método premium */}
+              <View style={styles.paymentMethods}>
+                {["EFECTIVO", "TRANSFERENCIA", "TARJETA"].map((metodo, index) => (
+                  <TouchableOpacity
+                    key={metodo}
+                    style={[
+                      styles.paymentMethodButton,
+                      metodoPago === metodo && styles.paymentMethodButtonActive,
+                    ]}
+                    onPress={() => {
+                      setMetodoPago(metodo);
+                      // Limpiar comprobante si cambiamos de método
+                      if (metodo !== "TRANSFERENCIA") {
+                        setComprobante(null);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[
+                      styles.paymentMethodIconContainer,
+                      metodoPago === metodo && styles.paymentMethodIconContainerActive
+                    ]}>
+                      <Text style={[
+                        styles.paymentMethodIcon,
+                        metodoPago === metodo && styles.paymentMethodIconActive
+                      ]}>
+                        {metodo === "EFECTIVO" && "💵"}
+                        {metodo === "TRANSFERENCIA" && "🏦"}
+                        {metodo === "TARJETA" && "💳"}
+                      </Text>
+                    </View>
+                    <Text style={[
+                      styles.paymentMethodText,
+                      metodoPago === metodo && styles.paymentMethodTextActive
+                    ]}>
+                      {metodo}
+                    </Text>
+                    {metodoPago === metodo && (
+                      <View style={styles.selectedIndicator}>
+                        <Text style={styles.selectedIndicatorIcon}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
-              
-              <Text style={styles.inputLabel}>Monto que entregarás (opcional):</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={`Mínimo: $${pedido.total.toFixed(2)}`}
-                placeholderTextColor="#94a3b8"
-                keyboardType="decimal-pad"
-                value={montoEfectivo}
-                onChangeText={setMontoEfectivo}
-              />
-              {montoEfectivo && parseFloat(montoEfectivo) >= pedido.total && (
-                <Text style={styles.cambioText}>
-                  ✓ Cambio: ${(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
-                </Text>
+
+              {/* Formularios según método de pago */}
+              {metodoPago === "EFECTIVO" && (
+                <AnimatedCard delay={400}>
+                  <PremiumCard style={styles.formContainer}>
+                    <View style={styles.alertBox}>
+                      <View style={styles.alertIconContainer}>
+                        <Text style={styles.alertIcon}>💵</Text>
+                      </View>
+                      <View style={styles.alertContent}>
+                        <Text style={styles.alertTitle}>Pago contra entrega</Text>
+                        <Text style={styles.alertText}>
+                          Pagarás ${pedido.total.toFixed(2)} en efectivo cuando recibas tu pedido.
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.inputLabel}>Monto que entregarás (opcional):</Text>
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.inputCurrency}>$</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Ej: ${(pedido.total + 1).toFixed(2)}`}
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="decimal-pad"
+                        value={montoEfectivo}
+                        onChangeText={(text) => {
+                          // Permitir números, coma y punto
+                          const cleaned = text.replace(/[^0-9,.]/g, '');
+                          // Reemplazar punto por coma si el usuario lo pone
+                          const formatted = cleaned.replace('.', ',');
+                          setMontoEfectivo(formatted);
+                        }}
+                      />
+                      <TouchableOpacity 
+                        style={styles.sugerenciaButton}
+                        onPress={() => {
+                          // Sugerir un monto redondeado
+                          const sugerido = Math.ceil(pedido.total) + 1;
+                          setMontoEfectivo(sugerido.toFixed(2).replace('.', ','));
+                        }}
+                      >
+                        <Text style={styles.sugerenciaButtonText}>Sugerir</Text>
+                      </TouchableOpacity>
+                    </View>
+                    
+                    {montoEfectivo && (
+                      <View style={styles.cambioContainer}>
+                        <Text style={styles.cambioLabel}>Información:</Text>
+                        {(() => {
+                          const montoLimpio = montoEfectivo.replace(',', '.');
+                          const montoNum = parseFloat(montoLimpio);
+                          
+                          if (isNaN(montoNum)) {
+                            return (
+                              <Text style={styles.errorText}>❌ Monto inválido</Text>
+                            );
+                          } else if (montoNum < pedido.total) {
+                            return (
+                              <Text style={styles.errorText}>
+                                ❌ Faltan ${(pedido.total - montoNum).toFixed(2)}
+                              </Text>
+                            );
+                          } else {
+                            return (
+                              <Text style={styles.cambioText}>
+                                ✓ Cambio: ${(montoNum - pedido.total).toFixed(2)}
+                              </Text>
+                            );
+                          }
+                        })()}
+                      </View>
+                    )}
+                    
+                    <Text style={styles.ayudaText}>
+                      ⓘ Si no ingresas un monto, se asumirá que pagarás el total exacto (${pedido.total.toFixed(2)})
+                    </Text>
+                  </PremiumCard>
+                </AnimatedCard>
               )}
-            </View>
-          )}
 
-          {metodoPago === "TRANSFERENCIA" && (
-            <View style={styles.formContainer}>
-              <Text style={styles.inputLabel}>Subir comprobante:</Text>
-              <TouchableOpacity
-                style={styles.fileButton}
-                onPress={seleccionarArchivo}
-              >
-                <Text style={styles.fileButtonText}>
-                  {comprobante ? `✓ ${comprobante.name}` : "📎 Seleccionar archivo"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+              {metodoPago === "TRANSFERENCIA" && (
+                <AnimatedCard delay={400}>
+                  <PremiumCard style={styles.formContainer}>
+                    <View style={styles.alertBox}>
+                      <View style={styles.alertIconContainer}>
+                        <Text style={styles.alertIcon}>🏦</Text>
+                      </View>
+                      <View style={styles.alertContent}>
+                        <Text style={styles.alertTitle}>Transferencia Bancaria</Text>
+                        <Text style={styles.alertText}>
+                          Transfiere ${pedido.total.toFixed(2)} a nuestra cuenta y sube el comprobante.
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.inputLabel}>Subir comprobante de transferencia:</Text>
+                    
+                    {comprobante ? (
+                      <View style={styles.comprobanteSeleccionado}>
+                        {comprobante.type?.includes('image') || comprobante.mimeType?.includes('image') ? (
+                          <Image 
+                            source={{ uri: comprobante.uri }} 
+                            style={styles.comprobantePreview}
+                          />
+                        ) : (
+                          <View style={styles.pdfIconContainer}>
+                            <Text style={styles.pdfIcon}>📄</Text>
+                          </View>
+                        )}
+                        <View style={styles.comprobanteInfo}>
+                          <Text style={styles.comprobanteNombre} numberOfLines={1}>
+                            {comprobante.name || 'Comprobante'}
+                          </Text>
+                          <Text style={styles.comprobanteTipo}>
+                            {comprobante.mimeType || comprobante.type || 'Archivo'}
+                          </Text>
+                          {comprobante.fileSize && (
+                            <Text style={styles.comprobanteSize}>
+                              {(comprobante.fileSize / 1024).toFixed(1)} KB
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.removerButton}
+                          onPress={() => setComprobante(null)}
+                        >
+                          <Text style={styles.removerButtonText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.fileButton}
+                        onPress={seleccionarComprobante}
+                      >
+                        <Text style={styles.fileButtonIcon}>📎</Text>
+                        <Text style={styles.fileButtonText}>Seleccionar comprobante</Text>
+                        <Text style={styles.fileButtonSubtext}>
+                          (Imagen JPG/PNG o PDF)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    <Text style={styles.ayudaText}>
+                      ⓘ Toma una foto del comprobante o selecciona el archivo PDF. Máximo 5MB.
+                    </Text>
+                  </PremiumCard>
+                </AnimatedCard>
+              )}
 
-          {metodoPago === "TARJETA" && (
-            <View style={styles.formContainer}>
-              <Text style={styles.inputLabel}>Número de tarjeta:</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0000 0000 0000 0000"
-                placeholderTextColor="#94a3b8"
-                keyboardType="number-pad"
-                maxLength={19}
-                value={numTarjeta}
-                onChangeText={(text) =>
-                  setNumTarjeta(
-                    text
-                      .replace(/\s/g, "")
-                      .replace(/(\d{4})/g, "$1 ")
-                      .trim()
-                  )
-                }
-              />
+              {metodoPago === "TARJETA" && (
+                <AnimatedCard delay={400}>
+                  <PremiumCard style={styles.formContainer}>
+                    <View style={styles.alertBox}>
+                      <View style={styles.alertIconContainer}>
+                        <Text style={styles.alertIcon}>💳</Text>
+                      </View>
+                      <View style={styles.alertContent}>
+                        <Text style={styles.alertTitle}>Pago con Tarjeta</Text>
+                        <Text style={styles.alertText}>
+                          Ingresa los datos de tu tarjeta para completar el pago seguro.
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.inputLabel}>Número de tarjeta:</Text>
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.inputIcon}>💳</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="1234 5678 9012 3456"
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="number-pad"
+                        maxLength={19}
+                        value={numTarjeta}
+                        onChangeText={(text) => {
+                          const formatted = text
+                            .replace(/\s/g, "")
+                            .replace(/(\d{4})/g, "$1 ")
+                            .trim();
+                          setNumTarjeta(formatted);
+                        }}
+                      />
+                    </View>
 
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>CVV:</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="123"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="number-pad"
-                    maxLength={4}
-                    value={cvv}
-                    onChangeText={setCvv}
-                  />
-                </View>
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>Expiración (MM/AA):</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="12/25"
-                    placeholderTextColor="#94a3b8"
-                    value={fechaTarjeta}
-                    onChangeText={setFechaTarjeta}
-                  />
-                </View>
-              </View>
+                    <View style={styles.rowInputs}>
+                      <View style={styles.columnInput}>
+                        <Text style={styles.inputLabel}>CVV:</Text>
+                        <View style={styles.inputContainer}>
+                          <Text style={styles.inputIcon}>🔒</Text>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="123"
+                            placeholderTextColor="#94a3b8"
+                            keyboardType="number-pad"
+                            maxLength={4}
+                            secureTextEntry
+                            value={cvv}
+                            onChangeText={setCvv}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.columnInput}>
+                        <Text style={styles.inputLabel}>Expiración (MM/AA):</Text>
+                        <View style={styles.inputContainer}>
+                          <Text style={styles.inputIcon}>📅</Text>
+                          <TextInput
+                            style={styles.input}
+                            placeholder="12/25"
+                            placeholderTextColor="#94a3b8"
+                            value={fechaTarjeta}
+                            onChangeText={(text) => {
+                              // Formato automático MM/AA
+                              let formatted = text.replace(/\D/g, '');
+                              if (formatted.length > 2) {
+                                formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
+                              }
+                              setFechaTarjeta(formatted);
+                            }}
+                            maxLength={5}
+                          />
+                        </View>
+                      </View>
+                    </View>
 
-              <Text style={styles.inputLabel}>Titular:</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre completo"
-                placeholderTextColor="#94a3b8"
-                value={titular}
-                onChangeText={setTitular}
-              />
-            </View>
-          )}
+                    <Text style={styles.inputLabel}>Titular:</Text>
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.inputIcon}>👤</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Nombre completo como aparece en la tarjeta"
+                        placeholderTextColor="#94a3b8"
+                        value={titular}
+                        onChangeText={setTitular}
+                      />
+                    </View>
+                    
+                    <Text style={styles.ayudaText}>
+                      ⓘ Los datos de tarjeta se procesan de forma segura.
+                    </Text>
+                  </PremiumCard>
+                </AnimatedCard>
+              )}
 
-          {/* Botón finalizar */}
+              {/* Botón de finalizar */}
+              <AnimatedCard delay={500}>
+                <TouchableOpacity
+                  style={[styles.finalizarButton, finalizando && styles.finalizarButtonDisabled]}
+                  onPress={finalizarCompra}
+                  disabled={finalizando}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.finalizarButtonContent}>
+                    <View style={styles.finalizarButtonIconContainer}>
+                      <Text style={styles.finalizarButtonIcon}>
+                        {finalizando ? "⏳" : "💳"}
+                      </Text>
+                    </View>
+                    <Text style={styles.finalizarButtonText}>
+                      {finalizando ? "Procesando..." : `Pagar $${pedido.total.toFixed(2)}`}
+                    </Text>
+                  </View>
+                  {!finalizando && <View style={styles.buttonGlow} />}
+                  <View style={styles.buttonShine} />
+                </TouchableOpacity>
+              </AnimatedCard>
+            </PremiumCard>
+          </AnimatedCard>
+        </View>
+      )}
+
+      {/* 🔥 BOTÓN DE CANCELAR (SOLO SI ESTÁ PENDIENTE) */}
+      {!pedidoCompletado && pedido.estadoPedido === "PENDIENTE" && (
+        <AnimatedCard delay={600}>
           <TouchableOpacity
-            style={[styles.finalizarButton, finalizando && styles.finalizarButtonDisabled]}
-            onPress={finalizarCompra}
-            disabled={finalizando}
+            style={styles.cancelarButton}
+            onPress={cancelarPedido}
+            activeOpacity={0.7}
           >
-            <Text style={styles.finalizarButtonText}>
-              {finalizando ? "⏳ Procesando..." : "✔ Finalizar Compra"}
-            </Text>
+            <Text style={styles.cancelarButtonIcon}>✕</Text>
+            <Text style={styles.cancelarButtonText}>Cancelar Pedido</Text>
           </TouchableOpacity>
-        </View>
+        </AnimatedCard>
       )}
 
-      {/* Información adicional si está finalizado */}
-      {pedidoFinalizado && (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            {pedido.estadoPedido === "COMPLETADO" && "✓ Tu pedido ha sido completado exitosamente. Gracias por tu compra."}
-            {pedido.estadoPedido === "PENDIENTE_VERIFICACION" && "⏳ Tu pedido está en verificación. Te notificaremos cuando sea procesado."}
-            {pedido.estadoPedido === "PROCESANDO" && "🔄 Tu pedido está siendo procesado. Pronto estará listo."}
-          </Text>
+      {/* 🔥 FOOTER PREMIUM */}
+      <View style={styles.footer}>
+        <FloatingCircles />
+        
+        <View style={styles.footerContent}>
+          <View style={styles.footerIconContainer}>
+            <Text style={styles.footerIcon}>🔒</Text>
+            <View style={styles.footerIconGlow} />
+            <View style={styles.footerIconShine} />
+          </View>
+          <View>
+            <Text style={styles.footerTitle}>Proceso de Pago Seguro</Text>
+            <Text style={styles.footerBrand}>MercadoLocal</Text>
+          </View>
         </View>
-      )}
+        <Text style={styles.footerSubtitle}>
+          {pedidoCompletado 
+            ? `Tu pedido #${pedido.idPedido} está ${pedido.estadoPedido.toLowerCase()}`
+            : "Tus pagos están protegidos con encriptación de nivel bancario"
+          }
+        </Text>
+        
+        <View style={styles.footerDecoration}>
+          <View style={styles.footerLine} />
+          <View style={styles.footerDots}>
+            <View style={styles.footerDot} />
+            <View style={styles.footerDot} />
+            <View style={styles.footerDot} />
+          </View>
+          <View style={styles.footerLine} />
+        </View>
+        
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Pedido #{pedido.idPedido} • MercadoLocal</Text>
+          <Text style={styles.versionSubtext}>© 2024 Todos los derechos reservados</Text>
+        </View>
+      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -638,324 +1505,1317 @@ export default function PedidoDetalle() {
 }
 
 const styles = StyleSheet.create({
+  // 🔥 CONTAINER PRINCIPAL
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
+  
+  // 🔥 LOADING SCREEN PREMIUM
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f8f9fa",
+    position: 'relative',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#6b8e4e",
+    color: "#FF6B35",
     fontWeight: "600",
+    fontFamily: "System",
+    letterSpacing: 0.5,
   },
+  loadingCircles: {
+    flexDirection: "row",
+    marginTop: 20,
+    gap: 10,
+  },
+  loadingCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    opacity: 0.8,
+    transform: [{ scale: 1 }],
+  },
+  
+  // 🔥 ERROR SCREEN PREMIUM
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f8f9fa",
     padding: 20,
+    position: 'relative',
+  },
+  errorContent: {
+    alignItems: 'center',
+    zIndex: 1,
   },
   errorIcon: {
     fontSize: 64,
     marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   errorTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#2D3E2B",
+    color: "#1e293b",
     marginBottom: 8,
+    fontFamily: "System",
+    letterSpacing: -0.3,
   },
   errorText: {
     fontSize: 16,
-    color: "#6B7F69",
-    marginBottom: 24,
+    color: "#64748b",
     textAlign: "center",
+    marginBottom: 32,
+    fontFamily: "System",
+    lineHeight: 22,
   },
-  errorButton: {
-    backgroundColor: "#5A8F48",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+  errorButtons: {
+    flexDirection: "row",
+    gap: 16,
   },
-  errorButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "700",
+  
+  // 🔥 CÍRCULOS FLOTANTES PREMIUM
+  floatingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    overflow: 'hidden',
   },
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 1000,
+    opacity: 0.08,
+  },
+  circle1: {
+    width: 200,
+    height: 200,
+    backgroundColor: '#FF6B35',
+    top: -50,
+    left: -50,
+  },
+  circle2: {
+    width: 150,
+    height: 150,
+    backgroundColor: '#3498DB',
+    top: 100,
+    right: -30,
+  },
+  circle3: {
+    width: 180,
+    height: 180,
+    backgroundColor: '#9B59B6',
+    bottom: 100,
+    left: -40,
+  },
+  circle4: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#2ECC71',
+    bottom: 50,
+    right: 50,
+  },
+  circle5: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#FF9F43',
+    top: 150,
+    left: '30%',
+  },
+  circle6: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#54a0ff',
+    bottom: 150,
+    right: '30%',
+  },
+  
+  // 🔥 HEADER PREMIUM
   header: {
     backgroundColor: "white",
     paddingTop: 60,
+    paddingBottom: 40,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    alignItems: "center",
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
+    elevation: 15,
+    overflow: 'hidden',
+    position: 'relative',
   },
+  
+  // Botón de volver premium
   backButton: {
-    marginBottom: 16,
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  backButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    position: 'relative',
+  },
+  backButtonGlow: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 107, 53, 0.2)',
+    top: -2,
+    left: -2,
+  },
+  backButtonIcon: {
+    fontSize: 18,
+    color: "#FF6B35",
+    fontWeight: "700",
+    zIndex: 1,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#5A8F48",
+    color: "#FF6B35",
+    fontFamily: "System",
+    marginLeft: 8,
   },
-  headerCard: {
+  
+  headerContent: {
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  
+  // Avatar premium con efectos 3D
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  avatarRing: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  avatarGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: [{ scale: 0.9 }],
+  },
+  avatarShine: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    top: 10,
+    left: 10,
+    transform: [{ rotate: '45deg' }],
+  },
+  avatarText: {
+    fontSize: 38,
+    fontWeight: "800",
+    color: "white",
+    fontFamily: "System",
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 6,
+  },
+  
+  // Badge de estado premium
+  estadoBadge: {
+    position: 'absolute',
+    bottom: -16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  estadoBadgeIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    color: "white",
+  },
+  estadoBadgeText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "white",
+    fontFamily: "System",
+    letterSpacing: 0.5,
+  },
+  
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerLabel: {
+    fontSize: 12,
+    letterSpacing: 3,
+    textTransform: "uppercase",
+    color: "#FF6B35",
+    fontWeight: "800",
+    marginBottom: 8,
+    fontFamily: "System",
+    opacity: 0.9,
+  },
+  titleLine: {
+    width: 40,
+    height: 3,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#1e293b",
+    marginBottom: 20,
+    textAlign: "center",
+    fontFamily: "System",
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.08)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  
+  infoBadgesContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  infoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#f8f9fa",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  infoBadgeIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  infoBadgeIcon: {
+    fontSize: 16,
+    color: "#64748b",
+  },
+  infoBadgeText: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
+  // 🔥 SECCIONES PREMIUM
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1e293b",
+    fontFamily: "System",
+    letterSpacing: -0.3,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  sectionSubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    fontFamily: "System",
+    opacity: 0.8,
+    textAlign: 'center',
+  },
+  sectionUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginTop: 8,
+  },
+  
+  // 🔥 TARJETA PREMIUM
+  premiumCard: {
+    backgroundColor: "white",
+    borderRadius: 25,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 107, 53, 0.05)',
+    transform: [{ scale: 2 }],
+  },
+  cardInnerShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+  },
+  
+  // 🔥 PRODUCTOS
+  emptyCard: {
+    alignItems: "center",
+    padding: 40,
+  },
+  emptyIcon: {
+    fontSize: 52,
+    marginBottom: 20,
+    opacity: 0.6,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+    fontFamily: "System",
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#64748b",
+    fontFamily: "System",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  
+  productsCard: {
+    padding: 20,
+  },
+  productItem: {
+    flexDirection: "row",
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  productImageContainer: {
+    marginRight: 16,
+    position: 'relative',
+  },
+  productImage: {
+    width: 75,
+    height: 75,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#f1f5f9",
+  },
+  productImageBorder: {
+    position: 'absolute',
+    width: 79,
+    height: 79,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255, 107, 53, 0.15)",
+    top: -2,
+    left: -2,
+  },
+  productImageGlow: {
+    position: 'absolute',
+    width: 83,
+    height: 83,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.05)",
+    top: -4,
+    left: -4,
+  },
+  productImagePlaceholder: {
+    width: 75,
+    height: 75,
+    borderRadius: 14,
+    backgroundColor: "#FFF2E8",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFE4D6",
+  },
+  productImagePlaceholderIcon: {
+    fontSize: 26,
+    color: "#FF6B35",
+    marginBottom: 4,
+  },
+  productImagePlaceholderText: {
+    fontSize: 11,
+    color: "#FF6B35",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
+  productInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  productName: {
+    fontSize: 17,
+    color: "#1e293b",
+    fontWeight: "700",
+    fontFamily: "System",
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  productMeta: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  quantityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  quantityBadgeIcon: {
+    fontSize: 13,
+    color: "#0369A1",
+  },
+  quantityBadgeText: {
+    fontSize: 13,
+    color: "#0369A1",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  priceBadge: {
+    backgroundColor: "#F0FFF4",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  priceBadgeText: {
+    fontSize: 13,
+    color: "#166534",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
+  productPriceContainer: {
+    alignItems: 'flex-end',
+  },
+  productPriceCurrency: {
+    fontSize: 15,
+    color: "#FF6B35",
+    fontWeight: "700",
+    fontFamily: "System",
+    marginBottom: -2,
+  },
+  productPrice: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#FF6B35",
+    fontFamily: "System",
+  },
+  productDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+    marginHorizontal: -10,
+  },
+  
+  // 🔥 PAGO
+  paymentCard: {
+    padding: 24,
+  },
+  paymentRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
-  headerLeft: {
+  paymentLabelContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    flex: 1,
+    gap: 14,
   },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: "#5A8F48",
+  paymentIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
-  iconText: {
-    fontSize: 24,
+  paymentIcon: {
+    fontSize: 20,
   },
-  pedidoTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#2D3E2B",
-  },
-  fechaText: {
-    fontSize: 12,
-    color: "#6B7F69",
-    marginTop: 4,
-  },
-  estadoBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  estadoText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  section: {
-    backgroundColor: "white",
-    marginTop: 16,
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2D3E2B",
-    marginBottom: 16,
-  },
-  productoCard: {
-    flexDirection: "row",
-    backgroundColor: "#F9FBF7",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: "center",
-    gap: 12,
-  },
-  productoImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-  },
-  productoInfo: {
-    flex: 1,
-  },
-  productoNombre: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2D3E2B",
-    marginBottom: 4,
-  },
-  productoDetalle: {
-    fontSize: 12,
-    color: "#6B7F69",
-  },
-  productoSubtotal: {
+  paymentLabel: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#5A8F48",
+    color: "#64748b",
+    fontWeight: "500",
+    fontFamily: "System",
   },
-  resumenCard: {
-    backgroundColor: "#F9D94A",
-    marginTop: 16,
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 16,
+  paymentValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  resumenRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  resumenLabel: {
-    fontSize: 14,
-    color: "#2D3E2B",
-  },
-  resumenValue: {
-    fontSize: 14,
+  paymentValueCurrency: {
+    fontSize: 16,
+    color: "#1e293b",
     fontWeight: "600",
-    color: "#2D3E2B",
+    fontFamily: "System",
+    marginRight: 4,
   },
-  divider: {
-    height: 2,
-    backgroundColor: "rgba(45, 62, 43, 0.2)",
-    marginVertical: 12,
-  },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  totalLabel: {
+  paymentValue: {
     fontSize: 18,
+    color: "#1e293b",
     fontWeight: "700",
-    color: "#2D3E2B",
+    fontFamily: "System",
   },
-  totalValue: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#2D3E2B",
+  
+  paymentDivider: {
+    alignItems: 'center',
+    marginVertical: 20,
   },
-  pagoSection: {
-    backgroundColor: "white",
-    marginTop: 16,
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 16,
+  paymentDividerLine: {
+    height: 2,
+    backgroundColor: "#f1f5f9",
+    width: '100%',
   },
-  metodosPago: {
-    flexDirection: "row",
+  paymentDividerDots: {
+    flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    position: 'absolute',
   },
-  metodoButton: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-    paddingVertical: 12,
-    borderRadius: 10,
+  paymentDividerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6B35',
+  },
+  
+  paymentTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
+    paddingTop: 20,
   },
-  metodoButtonActive: {
-    backgroundColor: "#5A8F48",
-    borderColor: "#5A8F48",
+  paymentTotalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FF6B35",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  metodoButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6B7F69",
-  },
-  metodoButtonTextActive: {
+  paymentTotalIcon: {
+    fontSize: 24,
     color: "white",
   },
+  paymentTotalLabel: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1e293b",
+    fontFamily: "System",
+  },
+  paymentTotalValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  paymentTotalCurrency: {
+    fontSize: 22,
+    color: "#FF6B35",
+    fontWeight: "700",
+    fontFamily: "System",
+    marginRight: 6,
+  },
+  paymentTotal: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#FF6B35",
+    fontFamily: "System",
+  },
+  
+  // 🔥 BOTONES PREMIUM
+  primaryButton: {
+    backgroundColor: "#FF6B35",
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "white",
+    minWidth: 140,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 16,
+    fontFamily: "System",
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: "white",
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#FF6B35",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    minWidth: 140,
+  },
+  secondaryButtonText: {
+    color: "#FF6B35",
+    fontWeight: "700",
+    fontSize: 16,
+    fontFamily: "System",
+    textAlign: 'center',
+  },
+  
+  // 🔥 MÉTODO DE PAGO PREMIUM
+  paymentMethodCard: {
+    padding: 24,
+  },
+  paymentMethods: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  paymentMethodButton: {
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    flex: 1,
+    marginHorizontal: 6,
+    position: 'relative',
+  },
+  paymentMethodButtonActive: {
+    backgroundColor: 'white',
+    borderColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  paymentMethodIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  paymentMethodIconContainerActive: {
+    backgroundColor: '#FFF2E8',
+  },
+  paymentMethodIcon: {
+    fontSize: 24,
+    color: '#64748b',
+  },
+  paymentMethodIconActive: {
+    color: '#FF6B35',
+  },
+  paymentMethodText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    fontFamily: 'System',
+  },
+  paymentMethodTextActive: {
+    color: '#FF6B35',
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  selectedIndicatorIcon: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  
   formContainer: {
-    marginTop: 16,
+    marginTop: 10,
   },
   alertBox: {
-    backgroundColor: "#FFF3CD",
+    flexDirection: 'row',
+    backgroundColor: '#F0F9FF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E0F2FE',
+  },
+  alertIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E0F2FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
     borderWidth: 2,
-    borderColor: "#FFC107",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderColor: 'white',
+  },
+  alertIcon: {
+    fontSize: 22,
+    color: '#0369A1',
+  },
+  alertContent: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0369A1',
+    marginBottom: 6,
+    fontFamily: 'System',
   },
   alertText: {
-    fontSize: 14,
-    color: "#856404",
-    lineHeight: 20,
-  },
-  alertTextBold: {
-    fontWeight: "700",
+    fontSize: 15,
+    color: '#64748b',
+    lineHeight: 22,
+    fontFamily: 'System',
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#2D3E2B",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 10,
+    fontFamily: 'System',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#f1f5f9',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    marginBottom: 20,
+    height: 60,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputCurrency: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF6B35',
+    marginRight: 10,
+    fontFamily: 'System',
+  },
+  inputIcon: {
+    fontSize: 22,
+    color: '#94a3b8',
+    marginRight: 14,
   },
   input: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: "#2D3E2B",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 12,
+    flex: 1,
+    fontSize: 17,
+    color: '#1e293b',
+    fontFamily: 'System',
+    paddingVertical: 0,
   },
-  cambioText: {
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  columnInput: {
+    flex: 1,
+  },
+  changeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FFF4',
+    padding: 16,
+    borderRadius: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  changeIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  changeIcon: {
+    fontSize: 18,
+    color: '#166534',
+  },
+  changeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#166534',
+    fontFamily: 'System',
+  },
+  
+  // 🔥 COMPROBANTE ESTILOS
+  comprobanteSeleccionado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F4ED',
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#E3EBD9',
+  },
+  comprobantePreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  pdfIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#E3EBD9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  pdfIcon: {
+    fontSize: 28,
+  },
+  comprobanteInfo: {
+    flex: 1,
+  },
+  comprobanteNombre: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  comprobanteTipo: {
     fontSize: 13,
-    color: "#5A8F48",
-    fontWeight: "600",
-    marginTop: -8,
-    marginBottom: 12,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  comprobanteSize: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  removerButton: {
+    backgroundColor: '#E74C3C',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removerButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   fileButton: {
     backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 14,
+    padding: 24,
     borderWidth: 2,
     borderColor: "#e5e7eb",
     borderStyle: "dashed",
     alignItems: "center",
+    marginBottom: 20,
+  },
+  fileButtonIcon: {
+    fontSize: 36,
     marginBottom: 12,
   },
   fileButtonText: {
-    fontSize: 14,
-    color: "#6B7F69",
+    fontSize: 16,
+    color: "#1e293b",
     fontWeight: "600",
   },
-  row: {
-    flexDirection: "row",
-    gap: 12,
+  fileButtonSubtext: {
+    fontSize: 13,
+    color: "#64748b",
+    marginTop: 6,
   },
-  halfInput: {
-    flex: 1,
+  
+  sugerenciaButton: {
+    backgroundColor: '#FFF2E8',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
   },
-  finalizarButton: {
-    backgroundColor: "#5A8F48",
-    paddingVertical: 16,
+  sugerenciaButtonText: {
+    color: '#FF6B35',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  
+  cambioContainer: {
+    backgroundColor: '#FAFBF9',
+    padding: 12,
     borderRadius: 12,
-    alignItems: "center",
-    marginTop: 20,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#F0F4ED',
+  },
+  cambioLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 6,
+  },
+  cambioText: {
+    fontSize: 15,
+    color: '#2ECC71',
+    fontWeight: '600',
+  },
+  errorTextF: {
+  fontSize: 15,
+  color: '#E74C3C',
+  fontWeight: '600', // Esto debería funcionar
+  fontFamily: 'System', // Añade esto para mejor compatibilidad
+},
+  ayudaText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  
+  // 🔥 BOTÓN FINALIZAR PREMIUM
+  finalizarButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 18,
+    paddingVertical: 22,
+    marginTop: 24,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 2,
+    borderColor: 'white',
   },
   finalizarButtonDisabled: {
-    backgroundColor: "#98A598",
+    backgroundColor: '#94a3b8',
+    shadowColor: '#94a3b8',
+    opacity: 0.9,
+  },
+  finalizarButtonContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  finalizarButtonIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  finalizarButtonIcon: {
+    fontSize: 18,
+    color: 'white',
+    fontWeight: 'bold',
   },
   finalizarButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: '800',
+    color: 'white',
+    fontFamily: 'System',
   },
-  infoBox: {
-    backgroundColor: "#FAFBF9",
-    marginTop: 16,
+  buttonGlow: {
+    position: 'absolute',
+    width: '200%',
+    height: '200%',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 1000,
+    top: '-50%',
+    left: '-50%',
+    zIndex: 0,
+  },
+  buttonShine: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    top: -30,
+    right: -30,
+    transform: [{ rotate: '45deg' }],
+    zIndex: 0,
+  },
+  
+  // 🔥 BOTÓN CANCELAR
+  cancelarButton: {
+    backgroundColor: 'white',
+    borderRadius: 18,
+    paddingVertical: 18,
     marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F0F4ED",
+    marginBottom: 20,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#E74C3C',
+    shadowColor: '#E74C3C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  infoText: {
+  cancelarButtonIcon: {
+    fontSize: 18,
+    color: '#E74C3C',
+    fontWeight: 'bold',
+  },
+  cancelarButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E74C3C',
+    fontFamily: 'System',
+  },
+  
+  // 🔥 FOOTER PREMIUM
+  footer: {
+    backgroundColor: "white",
+    borderRadius: 30,
+    padding: 36,
+    marginHorizontal: 20,
+    marginBottom: 40,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  footerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    marginBottom: 20,
+    zIndex: 1,
+  },
+  footerIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FF6B35",
+    justifyContent: "center",
+    alignItems: "center",
+    position: 'relative',
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  footerIconGlow: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 107, 53, 0.3)',
+    top: -2,
+    left: -2,
+  },
+  footerIconShine: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    top: 10,
+    left: 10,
+    transform: [{ rotate: '45deg' }],
+  },
+  footerIcon: {
+    fontSize: 32,
+    color: "white",
+    zIndex: 1,
+  },
+  footerTitle: {
+    fontSize: 16,
+    color: "#64748b",
+    fontWeight: "500",
+    fontFamily: "System",
+    marginBottom: 6,
+    zIndex: 1,
+  },
+  footerBrand: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FF6B35",
+    fontFamily: "System",
+    letterSpacing: -0.5,
+    zIndex: 1,
+  },
+  footerSubtitle: {
+    fontSize: 15,
+    color: "#94a3b8",
+    textAlign: "center",
+    marginBottom: 24,
+    fontFamily: "System",
+    lineHeight: 22,
+    zIndex: 1,
+  },
+  footerDecoration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 24,
+    zIndex: 1,
+  },
+  footerLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#f1f5f9',
+  },
+  footerDots: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  footerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6B35',
+  },
+  versionContainer: {
+    alignItems: "center",
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+    width: '100%',
+    zIndex: 1,
+  },
+  versionText: {
     fontSize: 13,
-    color: "#6B7F69",
-    lineHeight: 20,
+    color: "#94a3b8",
+    fontWeight: "600",
+    fontFamily: "System",
+    letterSpacing: 0.5,
+  },
+  versionSubtext: {
+    fontSize: 12,
+    color: "#cbd5e1",
+    marginTop: 6,
+    fontFamily: "System",
   },
 });
