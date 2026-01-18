@@ -206,10 +206,10 @@ export default function ProductoDetalle() {
                errorMessage.includes("already") ||
                errorMessage.includes("duplicate"))) {
             console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
-            // Solo log, NO mostramos alerta
+           
           } else {
             console.warn("Error del servidor al agregar favorito:", errorMessage);
-            // NO MOSTRAMOS ALERTA - Solo log en consola
+            
           }
         } else {
           // Respuesta exitosa
@@ -218,7 +218,7 @@ export default function ProductoDetalle() {
         }
       } catch (fetchError: any) {
         console.error("Error en la petición al servidor:", fetchError.message || fetchError);
-        // NO MOSTRAMOS ALERTA - Solo log en consola
+       
       }
       
       Alert.alert("¡Guardado!", "Producto agregado a favoritos");

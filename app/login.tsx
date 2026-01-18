@@ -1,9 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +19,8 @@ import {
 } from "react-native";
 import { API_CONFIG, getCurrentNetwork } from "../config";
 
+const { width, height } = Dimensions.get("window");
+
 interface LoginResponse {
   token: string;
   rol: string;
@@ -25,6 +30,393 @@ interface LoginResponse {
   idVendedor?: number;
   idConsumidor?: number;
 }
+
+// PALETA DE COLORES COMO EN EXPLORAR PRODUCTOS
+const COLORS = {
+  primary: "#FF6B35",        // Naranja principal
+  secondary: "#9B59B6",      // Morado
+  accent: "#3498DB",         // Azul
+  success: "#2ECC71",        // Verde para éxito
+  background: "#F8F9FA",     // Fondo claro
+  surface: "#FFFFFF",        // Superficie blanca
+  text: "#2C3E50",           // Texto oscuro
+  lightText: "#64748B",      // Texto claro
+  overlay: "rgba(255, 255, 255, 0.92)", // Overlay traslúcido
+  glow: "rgba(255, 107, 53, 0.25)",    // Brillo naranja
+};
+
+// Componente de fondo con efectos de circuitos elegantes
+const BackgroundEffects = () => {
+  const floatAnim1 = useRef(new Animated.Value(0)).current;
+  const floatAnim2 = useRef(new Animated.Value(0)).current;
+  const floatAnim3 = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    // Animaciones de flotación para círculos
+    const createFloatAnimation = (animValue: Animated.Value, duration: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(animValue, {
+            toValue: 1,
+            duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+          Animated.timing(animValue, {
+            toValue: 0,
+            duration,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    };
+
+    createFloatAnimation(floatAnim1, 7000).start();
+    createFloatAnimation(floatAnim2, 5000).start();
+    createFloatAnimation(floatAnim3, 6000).start();
+
+    // Animación de pulso para efectos de luz
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.6,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const translateY1 = floatAnim1.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 30],
+  });
+
+  const translateX2 = floatAnim2.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -20],
+  });
+
+  const translateY3 = floatAnim3.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 25],
+  });
+
+  return (
+    <View style={styles.backgroundContainer}>
+      {/* Gradiente principal con colores de la paleta */}
+      <View style={styles.gradientMain} />
+      
+      {/* Círculos flotantes con colores de explorar productos */}
+      <Animated.View 
+        style={[
+          styles.floatingCircle1,
+          { 
+            transform: [{ translateY: translateY1 }],
+            opacity: pulseAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.15, 0.25]
+            })
+          }
+        ]} 
+      />
+      <Animated.View 
+        style={[
+          styles.floatingCircle2,
+          { 
+            transform: [{ translateX: translateX2 }],
+            opacity: pulseAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.1, 0.2]
+            })
+          }
+        ]} 
+      />
+      <Animated.View 
+        style={[
+          styles.floatingCircle3,
+          { 
+            transform: [{ translateY: translateY3 }],
+            opacity: pulseAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.2, 0.3]
+            })
+          }
+        ]} 
+      />
+      
+      {/* Círculo morado adicional */}
+      <View style={styles.floatingCircle4} />
+      
+      {/* Patrones decorativos */}
+      <View style={styles.decorativePattern1} />
+      <View style={styles.decorativePattern2} />
+      <View style={styles.decorativePattern3} />
+    </View>
+  );
+};
+
+// Componente de logo estático con efectos elegantes
+const LogoWithEffects = () => {
+  const glowAnim = useRef(new Animated.Value(0.2)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animación sutil de flotación y brillo
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(floatAnim, {
+            toValue: 1,
+            duration: 3000,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(floatAnim, {
+            toValue: 0,
+            duration: 3000,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 0.5,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0.2,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ]),
+      ])
+    ).start();
+  }, []);
+
+  const translateY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -5],
+  });
+
+  return (
+    <View style={styles.logoContainer}>
+      {/* Halo naranja detrás del logo */}
+      <Animated.View style={[
+        styles.logoHalo,
+        {
+          opacity: glowAnim,
+          transform: [{ 
+            scale: glowAnim.interpolate({
+              inputRange: [0.2, 0.5],
+              outputRange: [1, 1.1]
+            }) 
+          }]
+        }
+      ]} />
+      
+      {/* Logo con contenedor elegante */}
+      <Animated.View style={[
+        styles.logoWrapper,
+        {
+          transform: [{ translateY }]
+        }
+      ]}>
+        {/* Fondo circular con gradiente */}
+        <View style={styles.logoBackground} />
+        
+        {/* Logo principal */}
+        <Image
+          source={require("../assets/images/Logo2.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        
+        {/* Reflejo sutil */}
+        <View style={styles.logoReflection} />
+      </Animated.View>
+    </View>
+  );
+};
+
+// Componente de input con efectos
+const AnimatedInput = ({ 
+  placeholder, 
+  value, 
+  onChangeText, 
+  secureTextEntry = false,
+  keyboardType = "default",
+  icon,
+  onFocus,
+  onBlur,
+  editable = true
+}: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const focusAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    onBlur?.();
+  };
+
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused]);
+
+  const borderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255, 107, 53, 0.1)", COLORS.primary],
+  });
+
+  const scale = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.005],
+  });
+
+  return (
+    <Animated.View style={[
+      styles.inputWrapper,
+      {
+        borderColor,
+        transform: [{ scale }],
+        shadowOpacity: focusAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.05, 0.15]
+        }),
+      }
+    ]}>
+      <View style={styles.inputIconContainer}>
+        <Text style={styles.inputIcon}>{icon}</Text>
+      </View>
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor="rgba(255, 107, 53, 0.5)"
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize="none"
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        editable={editable}
+      />
+      {/* Indicador de foco naranja */}
+      {isFocused && (
+        <Animated.View style={[
+          styles.inputFocusIndicator,
+          { 
+            opacity: focusAnim,
+            backgroundColor: COLORS.primary 
+          }
+        ]} />
+      )}
+    </Animated.View>
+  );
+};
+
+// Botón animado con colores de la paleta
+const AnimatedButton = ({ 
+  title, 
+  onPress, 
+  loading = false, 
+  variant = "primary",
+  icon,
+  subtitle
+}: any) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const buttonStyle = variant === "primary" ? styles.primaryButton : styles.secondaryButton;
+  const textStyle = variant === "primary" ? styles.primaryButtonText : styles.secondaryButtonText;
+  const iconColor = variant === "primary" ? "white" : COLORS.primary;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={loading}
+      activeOpacity={0.9}
+    >
+      <Animated.View style={[
+        buttonStyle,
+        { transform: [{ scale: scaleAnim }] },
+        loading && styles.buttonDisabled
+      ]}>
+        {/* Contenido del botón */}
+        <View style={styles.buttonContent}>
+          {icon && <Text style={[styles.buttonIcon, { color: iconColor }]}>{icon}</Text>}
+          <View style={styles.buttonTextContainer}>
+            <Text style={textStyle}>{title}</Text>
+            {subtitle && (
+              <Text style={[
+                styles.buttonSubtitle,
+                { color: variant === "primary" ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 107, 53, 0.7)" }
+              ]}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {!loading && (
+            <Text style={[
+              styles.buttonArrow,
+              { color: variant === "primary" ? "white" : COLORS.primary }
+            ]}>
+              →
+            </Text>
+          )}
+        </View>
+        
+        {/* Indicador de carga */}
+        {loading && (
+          <ActivityIndicator 
+            color={variant === "primary" ? "white" : COLORS.primary} 
+            size="small" 
+            style={styles.buttonLoader}
+          />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -95,8 +487,7 @@ export default function LoginScreen() {
 
       console.log("💾 Datos guardados");
 
-      // 🔥 IMPORTANTE: Redirigir siempre a (tabs) después del login exitoso
-      console.log("📱 → Redirigiendo a tabs");
+      // Redirigir a tabs
       router.replace("/(tabs)");
 
     } catch (error: any) {
@@ -118,11 +509,9 @@ export default function LoginScreen() {
     }
   };
 
-  // 🔥 NUEVA FUNCIÓN: Login como invitado
   const handleGuestLogin = async () => {
     setLoading(true);
     try {
-      // Guardar estado de invitado en AsyncStorage
       await AsyncStorage.setItem("isGuest", "true");
       await AsyncStorage.removeItem("authToken");
       await AsyncStorage.removeItem("token");
@@ -133,8 +522,6 @@ export default function LoginScreen() {
       await AsyncStorage.removeItem("idConsumidor");
       
       console.log("👤 Usuario invitado registrado");
-      
-      // Redirigir directamente a explorar (no a tabs)
       router.replace("/(tabs)/explorar");
     } catch (error) {
       console.error("Error en login invitado:", error);
@@ -149,7 +536,6 @@ export default function LoginScreen() {
   };
 
   const handleBackToWelcome = () => {
-    // 🔥 CORREGIDO: Usar replace para ir al inicio
     router.replace("/WelcomeScreen");
   };
 
@@ -170,107 +556,128 @@ export default function LoginScreen() {
       <ScrollView 
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("../assets/images/Logo2.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        {/* Fondo con efectos de círculos */}
+        <BackgroundEffects />
+        
+        {/* Logo con efectos sutiles */}
+        <LogoWithEffects />
+
+        {/* Título principal */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.mainTitle}>¡Bienvenido!</Text>
+          <Text style={styles.subTitle}>Inicia sesión en tu cuenta</Text>
+          
+          {/* Línea decorativa naranja */}
+          <View style={styles.titleLine} />
         </View>
 
-        <Text style={styles.title}>Mercado Local-IA</Text>
-        <Text style={styles.subtitle}>Bienvenido de vuelta</Text>
-
+        {/* Formulario con card elegante */}
         <View style={styles.formContainer}>
-          <Text style={styles.label}>Correo electrónico</Text>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputIcon}>📧</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="tu@correo.com"
-              placeholderTextColor="#aaa"
+          <View style={styles.formCard}>
+            {/* Header de la card con gradiente naranja */}
+            <View style={styles.cardHeader} />
+            
+            {/* Campos del formulario */}
+            <Text style={styles.formLabel}>Correo electrónico</Text>
+            <AnimatedInput
+              placeholder="ejemplo@correo.com"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
+              icon="📧"
               editable={!loading}
             />
-          </View>
 
-          <Text style={styles.label}>Contraseña</Text>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputIcon}>🔒</Text>
-            <TextInput
-              style={[styles.input, { paddingRight: 50 }]}
+            <Text style={styles.formLabel}>Contraseña</Text>
+            <AnimatedInput
               placeholder="••••••••"
-              placeholderTextColor="#aaa"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              autoCapitalize="none"
+              icon="🔒"
               editable={!loading}
             />
+
+            {/* Toggle password */}
             <TouchableOpacity
-              style={styles.eyeIcon}
+              style={styles.togglePasswordButton}
               onPress={() => setShowPassword(!showPassword)}
               disabled={loading}
             >
-              <Text style={styles.eyeText}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
+              <Text style={styles.togglePasswordIcon}>
+                {showPassword ? "👁️" : "👁️‍🗨️"}
+              </Text>
+              <Text style={styles.togglePasswordText}>
+                {showPassword ? "Ocultar" : "Mostrar"} contraseña
+              </Text>
             </TouchableOpacity>
+
+            {/* Botón de inicio de sesión NARANJA */}
+            <AnimatedButton
+              title="Iniciar Sesión"
+              onPress={handleLogin}
+              loading={loading}
+              variant="primary"
+              icon="🚀"
+              subtitle="Accede a tu cuenta"
+            />
+
+            {/* Divisor elegante */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>o</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Botón de invitado - Estilo secundario */}
+            <AnimatedButton
+              title="Continuar como Invitado"
+              onPress={handleGuestLogin}
+              loading={loading}
+              variant="secondary"
+              icon="👤"
+              subtitle="Explora sin cuenta"
+            />
+
+            {/* Enlaces de navegación */}
+            <View style={styles.linksContainer}>
+              <TouchableOpacity 
+                onPress={handleRegisterRedirect}
+                disabled={loading}
+                style={styles.linkButton}
+              >
+                <Text style={styles.linkText}>
+                  ¿No tienes cuenta?{" "}
+                  <Text style={styles.linkHighlight}>Regístrate aquí</Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={handleBackToWelcome}
+                disabled={loading}
+                style={styles.linkButton}
+              >
+                <Text style={styles.backLink}>
+                  ← Volver al inicio
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color="white" size="small" />
-                <Text style={styles.loginButtonText}>Iniciando...</Text>
-              </View>
-            ) : (
-              <Text style={styles.loginButtonText}>Iniciar sesión</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* 🔥 BOTÓN PARA INVITADO */}
-          <TouchableOpacity
-            style={styles.guestButton}
-            onPress={handleGuestLogin}
-            disabled={loading}
-          >
-            <Text style={styles.guestButtonText}>
-              Continuar como invitado
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={handleRegisterRedirect}
-            disabled={loading}
-            style={styles.registerContainer}
-          >
-            <Text style={styles.registerText}>
-              ¿No tienes cuenta?{" "}
-              <Text style={styles.registerLink}>Crear cuenta</Text>
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            onPress={handleBackToWelcome}
-            disabled={loading}
-            style={styles.backContainer}
-          >
-            <Text style={styles.backText}>← Volver a Inicio</Text>
-          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.devInfo} onPress={mostrarConfig}>
-          <Text style={styles.devText}>🌐 {getCurrentNetwork().name}</Text>
-          <Text style={styles.devTextSmall}>{API_CONFIG.BASE_URL}</Text>
-          <Text style={styles.devTextSmall}>Toca para config</Text>
+        {/* Info de red */}
+        <TouchableOpacity style={styles.networkInfo} onPress={mostrarConfig}>
+          <View style={styles.networkIconContainer}>
+            <Text style={styles.networkIcon}>🌐</Text>
+            <View style={styles.networkStatus} />
+          </View>
+          <View style={styles.networkTextContainer}>
+            <Text style={styles.networkName}>{getCurrentNetwork().name}</Text>
+            <Text style={styles.networkUrl}>{API_CONFIG.BASE_URL}</Text>
+          </View>
+          <Text style={styles.networkHint}>Toca para detalles</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -280,146 +687,439 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#fffdf7",
+    backgroundColor: COLORS.background,
     padding: 20,
-    justifyContent: "center",
+    paddingTop: 60,
   },
+  
+  // Background effects
+  backgroundContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+  },
+  gradientMain: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.7,
+    backgroundColor: COLORS.background,
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
+  },
+  floatingCircle1: {
+    position: "absolute",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: COLORS.primary,
+    top: 100,
+    right: -80,
+  },
+  floatingCircle2: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: COLORS.secondary,
+    bottom: 150,
+    left: -50,
+  },
+  floatingCircle3: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.accent,
+    top: 250,
+    left: 20,
+  },
+  floatingCircle4: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.success,
+    bottom: 200,
+    right: 40,
+    opacity: 0.2,
+  },
+  decorativePattern1: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 107, 53, 0.05)",
+    top: 180,
+    right: 40,
+  },
+  decorativePattern2: {
+    position: "absolute",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(155, 89, 182, 0.05)",
+    bottom: 100,
+    right: 100,
+  },
+  decorativePattern3: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(52, 152, 219, 0.05)",
+    top: 350,
+    left: 100,
+  },
+  
+  // Logo effects
   logoContainer: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 30,
+    position: "relative",
+  },
+  logoHalo: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: COLORS.glow,
+  },
+  logoWrapper: {
+    position: "relative",
+    zIndex: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBackground: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "white",
+    position: "absolute",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
   logo: {
     width: 120,
     height: 120,
+    zIndex: 3,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#3a5a40",
-    textAlign: "center",
-    marginBottom: 8,
+  logoReflection: {
+    position: "absolute",
+    top: 10,
+    width: 100,
+    height: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 15,
+    transform: [{ rotate: "15deg" }],
+    zIndex: 2,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b8e4e",
-    textAlign: "center",
-    marginBottom: 30,
-  },
-  formContainer: {
-    width: "100%",
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3a5a40",
-    marginBottom: 8,
-    marginTop: 15,
-  },
-  inputWrapper: {
-    flexDirection: "row",
+  
+  // Header
+  headerContainer: {
     alignItems: "center",
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#e0ddd0",
-    borderRadius: 12,
-    paddingHorizontal: 15,
+    marginBottom: 40,
     position: "relative",
   },
-  inputIcon: {
+  mainTitle: {
+    fontSize: 42,
+    fontWeight: "800",
+    color: COLORS.primary,
+    textAlign: "center",
+    marginBottom: 8,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(255, 107, 53, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  subTitle: {
     fontSize: 18,
-    marginRight: 10,
+    color: COLORS.lightText,
+    textAlign: "center",
+    fontWeight: "500",
+    letterSpacing: 0.3,
+  },
+  titleLine: {
+    width: 60,
+    height: 3,
+    backgroundColor: COLORS.primary,
+    marginTop: 15,
+    borderRadius: 2,
+  },
+  
+  // Form
+  formContainer: {
+    marginBottom: 30,
+  },
+  formCard: {
+    backgroundColor: COLORS.overlay,
+    borderRadius: 30,
+    padding: 30,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.1,
+    shadowRadius: 25,
+    elevation: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.1)",
+  },
+  cardHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+    backgroundColor: COLORS.primary,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 8,
+    marginTop: 20,
+    marginLeft: 5,
+    letterSpacing: 0.3,
+  },
+  
+  // Inputs
+  inputWrapper: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 0,
+    overflow: "hidden",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  inputIconContainer: {
+    paddingLeft: 15,
+    paddingRight: 10,
+  },
+  inputIcon: {
+    fontSize: 20,
+    color: COLORS.primary,
   },
   input: {
     flex: 1,
-    padding: 14,
-    fontSize: 16,
-    color: "#333",
-  },
-  eyeIcon: {
-    position: "absolute",
-    right: 15,
-    padding: 5,
-  },
-  eyeText: {
-    fontSize: 20,
-  },
-  loginButton: {
-    backgroundColor: "#6b8e4e",
     padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    fontSize: 16,
+    color: COLORS.text,
+    height: 56,
+    fontWeight: "500",
   },
-  loginButtonDisabled: {
-    backgroundColor: "#94a3b8",
-    opacity: 0.7,
+  inputFocusIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
-  loadingContainer: {
+  
+  // Toggle password
+  togglePasswordButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    alignSelf: "flex-end",
+    marginTop: 12,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 107, 53, 0.08)",
   },
-  loginButtonText: {
-    color: "white",
+  togglePasswordIcon: {
     fontSize: 16,
+    marginRight: 6,
+  },
+  togglePasswordText: {
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: "600",
   },
-  // 🔥 NUEVOS ESTILOS PARA BOTÓN INVITADO
-  guestButton: {
-    backgroundColor: "#e8f4ea",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 15,
+  
+  // Buttons
+  primaryButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 15,
+    padding: 22,
+    marginTop: 10,
+    position: "relative",
+    overflow: "hidden",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  secondaryButton: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    padding: 22,
     borderWidth: 2,
-    borderColor: "#6b8e4e",
+    borderColor: COLORS.primary,
+    position: "relative",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  guestButtonText: {
-    color: "#3a5a40",
-    fontSize: 16,
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  buttonIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  secondaryButtonText: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  buttonSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  buttonArrow: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  buttonLoader: {
+    position: "absolute",
+    right: 20,
+  },
+  
+  // Divider
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 30,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 107, 53, 0.15)",
+  },
+  dividerText: {
+    marginHorizontal: 20,
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: "600",
+    backgroundColor: COLORS.overlay,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
-  registerContainer: {
+  
+  // Links
+  linksContainer: {
+    gap: 15,
     marginTop: 20,
   },
-  registerText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#666",
+  linkButton: {
+    paddingVertical: 10,
   },
-  registerLink: {
-    color: "#d48f27",
+  linkText: {
+    textAlign: "center",
+    fontSize: 15,
+    color: COLORS.lightText,
+    fontWeight: "500",
+  },
+  linkHighlight: {
+    color: COLORS.primary,
     fontWeight: "700",
   },
-  backContainer: {
-    marginTop: 15,
-  },
-  backText: {
+  backLink: {
     textAlign: "center",
-    fontSize: 14,
-    color: "#6b8e4e",
+    fontSize: 15,
+    color: COLORS.primary,
     fontWeight: "600",
   },
-  devInfo: {
-    marginTop: 30,
+  
+  // Network info
+  networkInfo: {
+    backgroundColor: COLORS.overlay,
+    borderRadius: 15,
     padding: 15,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
+    flexDirection: "row",
     alignItems: "center",
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  devText: {
+  networkIconContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  networkIcon: {
+    fontSize: 20,
+    color: COLORS.primary,
+  },
+  networkStatus: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.success,
+    top: 0,
+    right: 0,
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  networkTextContainer: {
+    flex: 1,
+  },
+  networkName: {
     fontSize: 12,
-    color: "#666",
     fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 2,
   },
-  devTextSmall: {
+  networkUrl: {
     fontSize: 10,
-    color: "#999",
-    marginTop: 4,
+    color: COLORS.lightText,
+  },
+  networkHint: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontWeight: "500",
   },
 });
