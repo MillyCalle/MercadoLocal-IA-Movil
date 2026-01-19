@@ -38,6 +38,18 @@ interface Pedido {
   pagado?: boolean;
 }
 
+// Componente para los círculos flotantes del fondo
+const FloatingCircles = () => {
+  return (
+    <View style={styles.floatingContainer}>
+      <View style={[styles.floatingCircle, styles.circle1]} />
+      <View style={[styles.floatingCircle, styles.circle2]} />
+      <View style={[styles.floatingCircle, styles.circle3]} />
+      <View style={[styles.floatingCircle, styles.circle4]} />
+    </View>
+  );
+};
+
 // Helper para formatear dinero
 const money = (value: number) => {
   return value !== null && value !== undefined 
@@ -59,20 +71,6 @@ const getEstadoLabel = (estado: string) => {
   return estados[estado] || estado;
 };
 
-// Helper para obtener el ícono del estado
-const getEstadoIcon = (estado: string) => {
-  const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-    PENDIENTE: "hourglass-outline",
-    PROCESANDO: "cube-outline",
-    PENDIENTE_VERIFICACION: "search-outline",
-    COMPLETADO: "checkmark-circle-outline",
-    CANCELADO: "close-circle-outline",
-    ENVIADO: "car-outline",
-    ENTREGADO: "checkmark-done-circle-outline"
-  };
-  return icons[estado] || "document-text-outline";
-};
-
 // Helper para obtener el color del estado
 const getEstadoColor = (estado: string) => {
   const colors: Record<string, string> = {
@@ -84,75 +82,74 @@ const getEstadoColor = (estado: string) => {
     ENTREGADO: "#059669", // verde oscuro
     CANCELADO: "#EF4444" // rojo
   };
-  return colors[estado] || "#6B7280"; // gris por defecto
+  return colors[estado] || "#6B7280";
 };
 
-// Helper para formatear la fecha
+// Helper para formatear la fecha (como en la imagen: "10 ene 2026")
 const formatFecha = (fecha: string) => {
   if (!fecha) return "";
   
   try {
     const date = new Date(fecha);
-    const hoy = new Date();
-    const ayer = new Date(hoy);
-    ayer.setDate(hoy.getDate() - 1);
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const dia = date.getDate();
+    const mes = meses[date.getMonth()];
+    const anio = date.getFullYear();
     
-    // Si es hoy
-    if (date.toDateString() === hoy.toDateString()) {
-      const hora = date.getHours().toString().padStart(2, '0');
-      const minutos = date.getMinutes().toString().padStart(2, '0');
-      return `Hoy, ${hora}:${minutos}`;
-    }
-    
-    // Si es ayer
-    if (date.toDateString() === ayer.toDateString()) {
-      const hora = date.getHours().toString().padStart(2, '0');
-      const minutos = date.getMinutes().toString().padStart(2, '0');
-      return `Ayer, ${hora}:${minutos}`;
-    }
-    
-    // Otras fechas
-    const dia = date.getDate().toString().padStart(2, '0');
-    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
-    const anio = date.getFullYear().toString().substr(-2);
-    return `${dia}/${mes}/${anio}`;
+    return `${dia} ${mes} ${anio}`;
   } catch (error) {
     return fecha;
   }
 };
 
-// Pasos de seguimiento
-const pasosSeguimiento = [
-  "PEDIDO_REALIZADO",
-  "RECOLECTANDO",
-  "EMPACANDO",
-  "EN_CAMINO",
-  "LISTO_PARA_RETIRO",
-  "ENTREGADO"
-];
-
-const getPasoLabel = (paso: string) => {
-  const labels: Record<string, string> = {
-    PEDIDO_REALIZADO: "Realizado",
-    RECOLECTANDO: "Recolectando",
-    EMPACANDO: "Empacando",
-    EN_CAMINO: "En camino",
-    LISTO_PARA_RETIRO: "Listo retiro",
-    ENTREGADO: "Entregado"
-  };
-  return labels[paso] || paso.replaceAll("_", " ");
+// Helper para formato de fecha y hora como en la imagen: "14:30 · Pedido #1234"
+const formatFechaHoraPedido = (fecha: string, idPedido: string) => {
+  if (!fecha) return `Pedido #${idPedido}`;
+  
+  try {
+    const date = new Date(fecha);
+    const hora = date.getHours().toString().padStart(2, '0');
+    const minutos = date.getMinutes().toString().padStart(2, '0');
+    return `${hora}:${minutos} · Pedido #${idPedido}`;
+  } catch (error) {
+    return `Pedido #${idPedido}`;
+  }
 };
 
-const getSeguimientoTexto = (estado: string) => {
-  const textos: Record<string, string> = {
-    PEDIDO_REALIZADO: "Pedido confirmado",
-    RECOLECTANDO: "Recolectando productos",
-    EMPACANDO: "Empacando pedido",
-    EN_CAMINO: "Tu pedido va en camino",
-    LISTO_PARA_RETIRO: "Listo para retirar",
-    ENTREGADO: "Pedido entregado"
+// Pasos de seguimiento (como en la imagen)
+const pasosSeguimiento = [
+  "Pedido",
+  "Recolectando",
+  "Empacando",
+  "En camino",
+  "Listo",
+  "Entregado"
+];
+
+const getSeguimientoIcon = (paso: string, completado: boolean, activo: boolean) => {
+  const iconos: Record<string, { name: keyof typeof Ionicons.glyphMap, color: string }> = {
+    Pedido: { name: "document-text-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" },
+    Recolectando: { name: "cube-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" },
+    Empacando: { name: "archive-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" },
+    "En camino": { name: "car-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" },
+    Listo: { name: "checkmark-circle-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" },
+    Entregado: { name: "checkmark-done-circle-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" }
   };
-  return textos[estado] || "Procesando pedido";
+  
+  return iconos[paso] || { name: "ellipse-outline", color: completado ? "#10B981" : activo ? "#FF6B35" : "#9CA3AF" };
+};
+
+const getEstadoActualTexto = (estadoSeguimiento?: string) => {
+  const textos: Record<string, string> = {
+    Pedido: "Pedido confirmado",
+    Recolectando: "Recolectando productos",
+    Empacando: "Empacando pedido",
+    "En camino": "Tu pedido va en camino",
+    Listo: "Listo para retirar",
+    Entregado: "Pedido entregado"
+  };
+  
+  return estadoSeguimiento ? textos[estadoSeguimiento] || "Procesando pedido" : "Confirmando pedido";
 };
 
 const { width } = Dimensions.get('window');
@@ -328,9 +325,9 @@ const MisPedidos = () => {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#5A8F48" />
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B35" />
           <Text style={styles.loadingText}>Cargando tus compras...</Text>
         </View>
       </SafeAreaView>
@@ -341,36 +338,37 @@ const MisPedidos = () => {
   if (pedidos.length === 0 && !loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        
+        {/* Header con efectos visuales */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#2D3E2B" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mis Compras</Text>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={fetchPedidos}
-          >
-            <Ionicons name="refresh-outline" size={22} color="#5A8F48" />
-          </TouchableOpacity>
+          <FloatingCircles />
+          
+          <View style={styles.headerTop}>
+            <Text style={styles.headerIcon}>📦</Text>
+          </View>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle}>Mis Compras</Text>
+            <View style={styles.titleUnderline} />
+          </View>
+          
+          <Text style={styles.headerSubtitle}>
+            Revisa el historial de todos tus pedidos
+          </Text>
         </View>
         
-        <View style={styles.centerContainer}>
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="cart-outline" size={64} color="#9AAA98" />
-          </View>
-          <Text style={styles.emptyTitle}>Aún no tienes compras</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🛒</Text>
+          <Text style={styles.emptyTitle}>No tienes compras registradas</Text>
           <Text style={styles.emptySubtitle}>
             Solo se muestran pedidos pagados o en verificación
           </Text>
           <TouchableOpacity 
-            style={styles.primaryButton}
+            style={styles.exploreButton}
             onPress={() => router.push('/(tabs)/explorar')}
           >
-            <Text style={styles.primaryButtonText}>Ir a la tienda</Text>
+            <Text style={styles.exploreButtonText}>Ir a la tienda</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -379,29 +377,30 @@ const MisPedidos = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
-      {/* Header */}
+      {/* Header con efectos visuales */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#2D3E2B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis Compras</Text>
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={fetchPedidos}
-        >
-          <Ionicons name="refresh-outline" size={22} color="#5A8F48" />
-        </TouchableOpacity>
+        <FloatingCircles />
+        
+        <View style={styles.headerTop}>
+          <Text style={styles.headerIcon}>📦</Text>
+        </View>
+        
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Mis Compras</Text>
+          <View style={styles.titleUnderline} />
+        </View>
+        
+        <Text style={styles.headerSubtitle}>
+          Revisa el historial de todos tus pedidos
+        </Text>
       </View>
 
       {/* Contador de pedidos */}
       <View style={styles.counterContainer}>
         <Text style={styles.counterText}>
-          {pedidos.length} compra{pedidos.length !== 1 ? 's' : ''} realizada{pedidos.length !== 1 ? 's' : ''}
+          {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} realizado{pedidos.length !== 1 ? 's' : ''}
         </Text>
       </View>
 
@@ -412,222 +411,192 @@ const MisPedidos = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#5A8F48']}
-            tintColor="#5A8F48"
+            colors={['#FF6B35']}
+            tintColor="#FF6B35"
           />
         }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={pedidos.length === 0 ? styles.scrollViewEmpty : undefined}
       >
         {pedidos.map((pedido) => {
           const puedeVerFactura = estadosConFactura.includes(pedido.estadoPedido);
           const puedeMarcarComoEntregado = esRepartidorOVendedor() && 
             (pedido.estadoSeguimiento === 'EN_CAMINO' || pedido.estadoPedido === 'ENVIADO');
-          const pasoIndex = pedido.estadoSeguimiento 
-            ? pasosSeguimiento.indexOf(pedido.estadoSeguimiento)
-            : 0;
+          
+          // Determinar el estado actual del seguimiento
+          let estadoActualIndex = 0;
+          if (pedido.estadoSeguimiento) {
+            estadoActualIndex = pasosSeguimiento.findIndex(
+              paso => paso.toLowerCase() === pedido.estadoSeguimiento?.toLowerCase()
+            );
+            if (estadoActualIndex === -1) estadoActualIndex = 0;
+          }
+
+          const estadoColor = getEstadoColor(pedido.estadoPedido);
+          const estadoLabel = getEstadoLabel(pedido.estadoPedido);
           
           return (
             <View key={pedido.idPedido} style={styles.pedidoCard}>
-              {/* Header del pedido */}
+              {/* Estado del pedido y total */}
+              <View style={styles.estadoContainer}>
+                <View style={[
+                  styles.estadoBadge,
+                  { backgroundColor: `${estadoColor}15` }
+                ]}>
+                  <View style={[styles.estadoDot, { backgroundColor: estadoColor }]} />
+                  <Text style={[
+                    styles.estadoText, 
+                    { color: estadoColor }
+                  ]}>
+                    {estadoLabel}
+                  </Text>
+                </View>
+                
+                {/* Total - COLOR NARANJA */}
+                <Text style={styles.pedidoTotal}>
+                  {money(pedido.total)}
+                </Text>
+              </View>
+
+              {/* Línea separadora */}
+              <View style={styles.separator} />
+
+              {/* Fecha e ID del pedido */}
+              <View style={styles.fechaContainer}>
+                <Text style={styles.fechaTexto}>
+                  {formatFecha(pedido.fechaPedido)}
+                </Text>
+                <Text style={styles.horaPedido}>
+                  {formatFechaHoraPedido(pedido.fechaPedido, pedido.idPedido)}
+                </Text>
+              </View>
+
+              {/* Botón para expandir/colapsar seguimiento */}
               <TouchableOpacity
-                style={styles.pedidoHeader}
+                style={styles.seguimientoButton}
                 onPress={() => setPedidoExpandido(
                   pedidoExpandido === pedido.idPedido ? null : pedido.idPedido
                 )}
                 activeOpacity={0.7}
               >
-                <View style={styles.pedidoInfo}>
-                  <View style={[
-                    styles.estadoBadge,
-                    { backgroundColor: `${getEstadoColor(pedido.estadoPedido)}20` }
-                  ]}>
-                    <Ionicons 
-                      name={getEstadoIcon(pedido.estadoPedido)} 
-                      size={14} 
-                      color={getEstadoColor(pedido.estadoPedido)} 
-                    />
-                    <Text style={[
-                      styles.estadoBadgeText, 
-                      { color: getEstadoColor(pedido.estadoPedido) }
-                    ]}>
-                      {getEstadoLabel(pedido.estadoPedido)}
-                    </Text>
-                  </View>
-                  <Text style={styles.pedidoFecha}>
-                    {formatFecha(pedido.fechaPedido)}
-                  </Text>
-                </View>
-                
+                <Text style={styles.seguimientoButtonText}>
+                  Seguimiento del pedido
+                </Text>
                 <Ionicons 
                   name={pedidoExpandido === pedido.idPedido ? "chevron-up" : "chevron-down"} 
                   size={20} 
-                  color="#9AAA98" 
+                  color="#FF6B35" 
                 />
               </TouchableOpacity>
 
-              {/* Contenido del pedido */}
-              <View style={styles.pedidoContent}>
-                {/* ID y total */}
-                <View style={styles.idTotalRow}>
-                  <View style={styles.idContainer}>
-                    <Text style={styles.idLabel}>Pedido #</Text>
-                    <Text style={styles.idValue}>{pedido.idPedido}</Text>
-                  </View>
-                  
-                  <View style={styles.totalContainer}>
-                    <Text style={styles.totalLabel}>Total:</Text>
-                    <Text style={styles.totalAmount}>{money(pedido.total)}</Text>
-                  </View>
-                </View>
-
-                {/* Método de pago */}
-                {pedido.metodoPago && (
-                  <View style={styles.metodoPagoContainer}>
-                    <Ionicons 
-                      name={pedido.metodoPago === 'EFECTIVO' ? 'cash-outline' : 'card-outline'} 
-                      size={16} 
-                      color="#6B7F69" 
-                    />
-                    <Text style={styles.metodoPagoText}>
-                      {pedido.metodoPago === 'EFECTIVO' ? 'Efectivo' : 
-                       pedido.metodoPago === 'TARJETA' ? 'Tarjeta' : 
-                       pedido.metodoPago}
-                    </Text>
-                    {pedido.pagado && (
-                      <View style={styles.pagadoBadge}>
-                        <Text style={styles.pagadoText}>Pagado</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Botones de acción */}
-                <View style={styles.buttonsContainer}>
-                  <TouchableOpacity
-                    style={styles.detalleButton}
-                    onPress={() => {
-                      console.log('Navegando a PedidoDetalle con ID:', pedido.idPedido);
-                      router.push(`/consumidor/PedidoDetalle?id=${pedido.idPedido}`);
-                    }}
-                  >
-                    <Ionicons name="eye-outline" size={18} color="#5A8F48" />
-                    <Text style={styles.detalleButtonText}>Ver detalle</Text>
-                  </TouchableOpacity>
-
-                  {puedeVerFactura && (
-                    <TouchableOpacity
-                      style={styles.facturaButton}
-                      onPress={() => {
-                        console.log('Navegando a Factura con ID:', pedido.idPedido);
-                        router.push(`/consumidor/Factura?id=${pedido.idPedido}`);
-                      }}
-                    >
-                      <MaterialIcons name="receipt-long" size={18} color="#FFFFFF" />
-                      <Text style={styles.facturaButtonText}>Factura</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {puedeMarcarComoEntregado && (
-                    <TouchableOpacity
-                      style={styles.entregadoButton}
-                      onPress={() => handleMarcarEntregado(pedido.idPedido, pedido.metodoPago)}
-                    >
-                      <FontAwesome5 name="check-circle" size={18} color="#FFFFFF" />
-                      <Text style={styles.entregadoButtonText}>Entregado</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Contenido expandido - Seguimiento */}
+              {/* Seguimiento expandido */}
               {pedidoExpandido === pedido.idPedido && (
-                <View style={styles.seguimientoContainer}>
-                  {/* Barra de progreso */}
-                  {pedido.estadoSeguimiento && (
-                    <View style={styles.progressBarContainer}>
-                      <Text style={styles.seguimientoTitle}>Seguimiento del pedido</Text>
+                <View style={styles.seguimientoExpandido}>
+                  {/* Pasos de seguimiento */}
+                  <View style={styles.pasosContainer}>
+                    {pasosSeguimiento.map((paso, index) => {
+                      const completado = index <= estadoActualIndex;
+                      const activo = index === estadoActualIndex;
+                      const icono = getSeguimientoIcon(paso, completado, activo);
                       
-                      <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, {
-                          width: `${(pasoIndex / (pasosSeguimiento.length - 1)) * 100}%`
-                        }]} />
-                      </View>
-                      
-                      <View style={styles.progressSteps}>
-                        {pasosSeguimiento.slice(0, 4).map((paso, index) => {
-                          const activo = index <= pasoIndex;
-                          return (
-                            <View key={paso} style={styles.progressStep}>
+                      return (
+                        <View key={paso} style={styles.pasoItem}>
+                          <View style={styles.pasoIconContainer}>
+                            {completado ? (
+                              <View style={[styles.pasoIconCompletado, activo && styles.pasoIconActivo]}>
+                                <Ionicons 
+                                  name={icono.name} 
+                                  size={16} 
+                                  color={completado ? "#FFFFFF" : icono.color} 
+                                />
+                              </View>
+                            ) : (
                               <View style={[
-                                styles.progressDot,
-                                activo && styles.progressDotActive
-                              ]} />
-                              <Text style={[
-                                styles.progressLabel,
-                                activo && styles.progressLabelActive
+                                styles.pasoIcon, 
+                                activo && styles.pasoIconActivoBorde,
+                                { borderColor: activo ? "#FF6B35" : "#D1D5DB" }
                               ]}>
-                                {getPasoLabel(paso)}
-                              </Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  )}
+                                <Ionicons 
+                                  name={icono.name} 
+                                  size={14} 
+                                  color={icono.color} 
+                                />
+                              </View>
+                            )}
+                            
+                            {/* Línea conectora */}
+                            {index < pasosSeguimiento.length - 1 && (
+                              <View style={[
+                                styles.pasoLinea,
+                                completado ? styles.pasoLineaCompletada : styles.pasoLineaPendiente
+                              ]} />
+                            )}
+                          </View>
+                          
+                          <Text style={[
+                            styles.pasoLabel,
+                            completado ? styles.pasoLabelCompletado : styles.pasoLabelPendiente,
+                            activo && styles.pasoLabelActivo
+                          ]}>
+                            {paso}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
 
                   {/* Estado actual */}
                   <View style={styles.estadoActualContainer}>
-                    <Ionicons name="location-outline" size={20} color="#5A8F48" />
-                    <View style={styles.estadoActualText}>
-                      <Text style={styles.estadoActualTitle}>
-                        {pedido.estadoSeguimiento 
-                          ? getSeguimientoTexto(pedido.estadoSeguimiento)
-                          : getEstadoLabel(pedido.estadoPedido)}
-                      </Text>
-                      <Text style={styles.estadoActualSubtitle}>
-                        Actualizado {formatFecha(pedido.fechaPedido)}
+                    <Text style={styles.estadoActualLabel}>Estado actual</Text>
+                    <View style={styles.estadoActualContent}>
+                      <Ionicons name="information-circle-outline" size={20} color="#FF6B35" />
+                      <Text style={styles.estadoActualTexto}>
+                        {getEstadoActualTexto(pedido.estadoSeguimiento)}
                       </Text>
                     </View>
                   </View>
+                </View>
+              )}
 
-                  {/* Información adicional */}
-                  <View style={styles.infoAdicional}>
-                    {/* Productos */}
-                    {pedido.productos && pedido.productos.length > 0 && (
-                      <View style={styles.productosContainer}>
-                        <Text style={styles.infoLabel}>Productos:</Text>
-                        {pedido.productos.slice(0, 3).map((producto, index) => (
-                          <View key={index} style={styles.productoItem}>
-                            <Text style={styles.productoNombre} numberOfLines={1}>
-                              {producto.cantidad}x {producto.nombre}
-                            </Text>
-                            <Text style={styles.productoPrecio}>
-                              ${(producto.precio * producto.cantidad).toFixed(2)}
-                            </Text>
-                          </View>
-                        ))}
-                        {pedido.productos.length > 3 && (
-                          <Text style={styles.masProductos}>
-                            +{pedido.productos.length - 3} productos más
-                          </Text>
-                        )}
-                      </View>
-                    )}
+              {/* Línea separadora */}
+              <View style={styles.separator} />
 
-                    {/* Dirección */}
-                    {pedido.direccionEntrega && (
-                      <View style={styles.direccionContainer}>
-                        <Text style={styles.infoLabel}>Dirección de entrega:</Text>
-                        <View style={styles.direccionContent}>
-                          <Ionicons name="location-outline" size={16} color="#6B7F69" />
-                          <Text style={styles.direccionText} numberOfLines={2}>
-                            {pedido.direccionEntrega}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
+              {/* Botones de acción */}
+              <View style={styles.accionesContainer}>
+                <TouchableOpacity
+                  style={styles.detalleButton}
+                  onPress={() => {
+                    console.log('Navegando a PedidoDetalle con ID:', pedido.idPedido);
+                    router.push(`/consumidor/PedidoDetalle?id=${pedido.idPedido}`);
+                  }}
+                >
+                  <Ionicons name="eye-outline" size={18} color="#FF6B35" />
+                  <Text style={styles.detalleButtonText}>Ver detalles completos</Text>
+                </TouchableOpacity>
+
+                {puedeVerFactura && (
+                  <TouchableOpacity
+                    style={styles.facturaButton}
+                    onPress={() => {
+                      console.log('Navegando a Factura con ID:', pedido.idPedido);
+                      router.push(`/consumidor/Factura?id=${pedido.idPedido}`);
+                    }}
+                  >
+                    <MaterialIcons name="receipt-long" size={18} color="#FF6B35" />
+                    <Text style={styles.facturaButtonText}>Ver factura</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Botón de entregado para repartidores/vendedores */}
+              {puedeMarcarComoEntregado && (
+                <View style={styles.entregadoContainer}>
+                  <TouchableOpacity
+                    style={styles.entregadoButton}
+                    onPress={() => handleMarcarEntregado(pedido.idPedido, pedido.metodoPago)}
+                  >
+                    <FontAwesome5 name="check-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.entregadoButtonText}>Marcar como entregado</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -643,409 +612,443 @@ const MisPedidos = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FBF7',
+    backgroundColor: "#f8f9fa",
   },
-  centerContainer: {
+  
+  // Efectos de círculos flotantes - MISMO QUE EXPLORAR Y CARRITO
+  floatingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 100,
+    opacity: 0.15,
+  },
+  circle1: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#FF6B35',
+    top: 20,
+    left: 20,
+  },
+  circle2: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#3498DB',
+    top: 60,
+    right: 30,
+  },
+  circle3: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#9B59B6',
+    bottom: 40,
+    left: 40,
+  },
+  circle4: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#2ECC71',
+    bottom: 80,
+    right: 50,
+  },
+  
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#F9FBF7',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
   },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#FF6B35",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
+  // Header mejorado - MISMO ESTILO QUE EXPLORAR Y CARRITO
   header: {
-    flexDirection: 'row',
+    backgroundColor: "white",
+    paddingTop: 50,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+    alignItems: "center",
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    zIndex: 1,
+  },
+  headerIcon: {
+    fontSize: 40,
+  },
+  
+  // Título con efectos
+  titleContainer: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8F5E9',
-  },
-  backButton: {
-    padding: 8,
-  },
-  refreshButton: {
-    padding: 8,
+    marginBottom: 8,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2D3E2B',
-    fontFamily: 'System',
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2C3E50",
+    textAlign: 'center',
+    fontFamily: "System",
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
   },
+  titleUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginTop: 6,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    marginTop: 4,
+    textAlign: "center",
+    fontFamily: "System",
+    zIndex: 1,
+  },
+  
   counterContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#f8f9fa",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8F5E9',
+    borderBottomColor: "#e5e7eb",
   },
   counterText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7F69',
-    textAlign: 'center',
+    fontWeight: "600",
+    color: "#6B7280",
+    textAlign: "center",
+    fontFamily: "System",
   },
+  
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    backgroundColor: "#f8f9fa",
+  },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: 20,
+    color: "#9CA3AF",
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 12,
+    fontFamily: "System",
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 30,
+    fontFamily: "System",
+  },
+  
+  // Botón Explorar - COLOR NARANJA
+  exploreButton: {
+    backgroundColor: "#FF6B35",
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  exploreButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "System",
+  },
+  
   scrollView: {
     flex: 1,
     padding: 16,
   },
-  scrollViewEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
+  
+  // Tarjeta de pedido - MISMO ESTILO QUE PRODUCTOS
   pedidoCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "white",
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#E8F5E9',
-    overflow: 'hidden',
+    borderColor: "#f1f5f9",
+    overflow: "hidden",
   },
-  pedidoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F7F0',
-  },
-  pedidoInfo: {
-    flex: 1,
+  
+  estadoContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
   },
   estadoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 6,
-  },
-  estadoBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  pedidoFecha: {
-    fontSize: 13,
-    color: '#9AAA98',
-  },
-  pedidoContent: {
-    padding: 16,
-  },
-  idTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  idContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  idLabel: {
-    fontSize: 13,
-    color: '#6B7F69',
-    marginRight: 4,
-  },
-  idValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2D3E2B',
-    fontFamily: 'Courier',
-  },
-  totalContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  totalLabel: {
-    fontSize: 14,
-    color: '#2D3E2B',
-    marginRight: 6,
-    fontWeight: '500',
-  },
-  totalAmount: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#5A8F48',
-    fontFamily: 'System',
-  },
-  metodoPagoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FBF7',
-    borderRadius: 10,
-    alignSelf: 'flex-start',
+    borderRadius: 20,
   },
-  metodoPagoText: {
-    fontSize: 13,
-    color: '#6B7F69',
-    marginLeft: 6,
-    marginRight: 10,
-    fontWeight: '500',
-  },
-  pagadoBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  pagadoText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 8,
-  },
-  detalleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#5A8F48',
-    backgroundColor: '#FFFFFF',
-    minWidth: 120,
-  },
-  detalleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#5A8F48',
-    marginLeft: 6,
-  },
-  facturaButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#5A8F48',
-    minWidth: 100,
-  },
-  facturaButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 6,
-  },
-  entregadoButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#4CAF50',
-    minWidth: 120,
-  },
-  entregadoButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 6,
-  },
-  seguimientoContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F7F0',
-    backgroundColor: '#F9FBF7',
-  },
-  progressBarContainer: {
-    marginBottom: 20,
-  },
-  seguimientoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D3E2B',
-    marginBottom: 16,
-    fontFamily: 'System',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#E0E6D8',
-    borderRadius: 3,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#5A8F48',
-    borderRadius: 3,
-  },
-  progressSteps: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressStep: {
-    alignItems: 'center',
-    width: (width - 32) / 4 - 8,
-  },
-  progressDot: {
+  estadoDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#C4CFC1',
-    marginBottom: 6,
-  },
-  progressDotActive: {
-    backgroundColor: '#5A8F48',
-    transform: [{ scale: 1.2 }],
-  },
-  progressLabel: {
-    fontSize: 10,
-    color: '#9AAA98',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  progressLabelActive: {
-    color: '#5A8F48',
-    fontWeight: '700',
-  },
-  estadoActualContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E8F5E9',
-  },
-  estadoActualText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  estadoActualTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#5A8F48',
-    marginBottom: 4,
-  },
-  estadoActualSubtitle: {
-    fontSize: 13,
-    color: '#6B7F69',
-  },
-  infoAdicional: {
-    gap: 12,
-  },
-  productosContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8F5E9',
-  },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2D3E2B',
-    marginBottom: 8,
-  },
-  productoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F7F0',
-  },
-  productoNombre: {
-    fontSize: 14,
-    color: '#6B7F69',
-    flex: 1,
     marginRight: 8,
   },
-  productoPrecio: {
+  estadoText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#5A8F48',
+    fontWeight: "600",
+    fontFamily: "System",
   },
-  masProductos: {
-    fontSize: 12,
-    color: '#9AAA98',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 6,
+  pedidoTotal: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#FF6B35",
+    fontFamily: "System",
   },
-  direccionContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8F5E9',
+  
+  separator: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 20,
   },
-  direccionContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 4,
+  
+  fechaContainer: {
+    padding: 20,
+    paddingBottom: 10,
   },
-  direccionText: {
-    fontSize: 14,
-    color: '#6B7F69',
-    flex: 1,
-    marginLeft: 8,
-    lineHeight: 20,
+  fechaTexto: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+    fontFamily: "System",
   },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#ECF2E3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+  horaPedido: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontFamily: "System",
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2D3E2B',
+  
+  seguimientoButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    paddingTop: 10,
+    backgroundColor: "#F8FAFC",
+  },
+  seguimientoButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1e293b",
+    fontFamily: "System",
+  },
+  
+  seguimientoExpandido: {
+    padding: 20,
+    backgroundColor: "#F8FAFC",
+  },
+  
+  pasosContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  pasoItem: {
+    alignItems: "center",
+    width: (width - 40) / 6 - 8,
+  },
+  pasoIconContainer: {
+    alignItems: "center",
     marginBottom: 8,
-    textAlign: 'center',
+    position: 'relative',
   },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#9AAA98',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
+  pasoIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    zIndex: 2,
   },
-  primaryButton: {
-    backgroundColor: '#5A8F48',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+  pasoIconCompletado: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  pasoIconActivo: {
+    backgroundColor: "#FF6B35",
+  },
+  pasoIconActivoBorde: {
+    borderWidth: 3,
+    borderColor: "#FF6B35",
+    backgroundColor: "#FFFFFF",
+  },
+  pasoLinea: {
+    position: 'absolute',
+    top: 14,
+    left: 30,
+    right: -((width - 40) / 6 + 8),
+    height: 2,
+    zIndex: 1,
+  },
+  pasoLineaCompletada: {
+    backgroundColor: "#10B981",
+  },
+  pasoLineaPendiente: {
+    backgroundColor: "#E5E7EB",
+  },
+  pasoLabel: {
+    fontSize: 10,
+    fontWeight: "500",
+    textAlign: "center",
+    fontFamily: "System",
+  },
+  pasoLabelCompletado: {
+    color: "#10B981",
+  },
+  pasoLabelPendiente: {
+    color: "#9CA3AF",
+  },
+  pasoLabelActivo: {
+    color: "#FF6B35",
+    fontWeight: "700",
+  },
+  
+  estadoActualContainer: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
+  estadoActualLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 8,
+    fontFamily: "System",
+  },
+  estadoActualContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  estadoActualTexto: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginLeft: 10,
+    flex: 1,
+    fontFamily: "System",
+  },
+  
+  accionesContainer: {
+    padding: 20,
+    gap: 12,
+  },
+  
+  detalleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FF6B35",
+    backgroundColor: "#FFFFFF",
+  },
+  detalleButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "600",
+    color: "#FF6B35",
+    marginLeft: 10,
+    fontFamily: "System",
   },
-  loadingText: {
-    marginTop: 12,
+  
+  facturaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FF6B35",
+    backgroundColor: "#FFFFFF",
+  },
+  facturaButtonText: {
     fontSize: 16,
-    color: '#6B7F69',
-    fontWeight: '600',
+    fontWeight: "600",
+    color: "#FF6B35",
+    marginLeft: 10,
+    fontFamily: "System",
   },
+  
+  entregadoContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  entregadoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#FF6B35",
+  },
+  entregadoButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 10,
+    fontFamily: "System",
+  },
+  
   bottomSpacing: {
     height: 20,
   },

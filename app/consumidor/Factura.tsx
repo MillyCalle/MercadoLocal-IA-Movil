@@ -48,6 +48,18 @@ interface Pedido {
   };
 }
 
+// Componente para los círculos flotantes del fondo
+const FloatingCircles = () => {
+  return (
+    <View style={styles.floatingContainer}>
+      <View style={[styles.floatingCircle, styles.circle1]} />
+      <View style={[styles.floatingCircle, styles.circle2]} />
+      <View style={[styles.floatingCircle, styles.circle3]} />
+      <View style={[styles.floatingCircle, styles.circle4]} />
+    </View>
+  );
+};
+
 const Factura = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -163,15 +175,15 @@ const Factura = () => {
   // Obtener información del estado
   const getEstadoInfo = (estado: string) => {
     const estados: Record<string, { color: string; bg: string; texto: string; }> = {
-      PENDIENTE: { color: "#F4B419", bg: "#FFF8E1", texto: "Pendiente" },
-      PROCESANDO: { color: "#4A90E2", bg: "#E3F2FD", texto: "Procesando" },
-      PENDIENTE_VERIFICACION: { color: "#F57C00", bg: "#FFF3E0", texto: "Verificando" },
-      COMPLETADO: { color: "#5A8F48", bg: "#E8F5E9", texto: "Completado" },
-      CANCELADO: { color: "#E74C3C", bg: "#FFEBEE", texto: "Cancelado" },
-      ENVIADO: { color: "#6366F1", bg: "#EEF2FF", texto: "Enviado" },
+      PENDIENTE: { color: "#F59E0B", bg: "#FEF3C7", texto: "Pendiente" },
+      PROCESANDO: { color: "#3B82F6", bg: "#DBEAFE", texto: "Procesando" },
+      PENDIENTE_VERIFICACION: { color: "#8B5CF6", bg: "#EDE9FE", texto: "Verificando" },
+      COMPLETADO: { color: "#10B981", bg: "#D1FAE5", texto: "Completado" },
+      CANCELADO: { color: "#EF4444", bg: "#FEE2E2", texto: "Cancelado" },
+      ENVIADO: { color: "#6366F1", bg: "#E0E7FF", texto: "Enviado" },
       ENTREGADO: { color: "#059669", bg: "#D1FAE5", texto: "Entregado" }
     };
-    return estados[estado] || { color: "#6B7F69", bg: "#F5F5F5", texto: estado };
+    return estados[estado] || { color: "#6B7280", bg: "#F3F4F6", texto: estado };
   };
 
   // Descargar/Compartir PDF
@@ -201,8 +213,8 @@ const Factura = () => {
               margin: 0 auto;
               background: white;
               padding: 30px;
-              border-radius: 10px;
-              border: 2px solid #E8F5E9;
+              border-radius: 12px;
+              border: 2px solid #FF6B35;
             }
             .header {
               text-align: center;
@@ -211,13 +223,13 @@ const Factura = () => {
             .empresa-nombre {
               font-size: 24px;
               font-weight: bold;
-              color: #5A8F48;
+              color: #FF6B35;
               margin-bottom: 8px;
             }
             .factura-titulo {
               font-size: 32px;
               font-weight: 900;
-              color: #2D3E2B;
+              color: #1F2937;
               margin: 0;
             }
             .numero-factura {
@@ -237,38 +249,38 @@ const Factura = () => {
               margin-bottom: 30px;
             }
             th {
-              background: #F5F9F3;
+              background: #FFF2E8;
               padding: 12px;
               text-align: left;
-              border-bottom: 2px solid #E3EBD9;
-              color: #2D3E2B;
+              border-bottom: 2px solid #FF6B35;
+              color: #1F2937;
               font-size: 12px;
               text-transform: uppercase;
               letter-spacing: 1px;
             }
             td {
               padding: 12px;
-              border-bottom: 1px solid #ECF2E3;
+              border-bottom: 1px solid #FFD3BE;
             }
             .totales {
-              background: #F5F9F3;
+              background: #FFF2E8;
               padding: 20px;
               border-radius: 8px;
-              border: 2px solid #E3EBD9;
+              border: 2px solid #FF6B35;
               max-width: 350px;
               margin-left: auto;
             }
             .total-final {
               font-size: 24px;
               font-weight: 900;
-              color: #5A8F48;
+              color: #FF6B35;
               margin-top: 10px;
             }
             .footer {
               text-align: center;
               padding-top: 20px;
-              border-top: 2px solid #ECF2E3;
-              color: #6B7F69;
+              border-top: 2px solid #FFD3BE;
+              color: #6B7280;
               font-size: 12px;
             }
           </style>
@@ -281,11 +293,11 @@ const Factura = () => {
             </div>
             
             <div class="numero-factura">
-              <div style="font-size: 11px; color: #6B7F69;">Nº FACTURA</div>
-              <div style="font-size: 22px; font-weight: 900; color: #5A8F48;">
+              <div style="font-size: 11px; color: #6B7280;">Nº FACTURA</div>
+              <div style="font-size: 22px; font-weight: 900; color: #FF6B35;">
                 ${numeroFactura}
               </div>
-              <div style="font-size: 10px; color: #9AAA98;">Pedido #${pedido.idPedido}</div>
+              <div style="font-size: 10px; color: #9CA3AF;">Pedido #${pedido.idPedido}</div>
             </div>
             
             <div class="grid">
@@ -400,9 +412,9 @@ const Factura = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#5A8F48" />
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B35" />
           <Text style={styles.loadingText}>Cargando factura...</Text>
         </View>
       </SafeAreaView>
@@ -412,31 +424,37 @@ const Factura = () => {
   if (!pedido) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        
+        {/* Header con efectos visuales */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#2D3E2B" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Factura</Text>
-          <View style={styles.headerRight} />
+          <FloatingCircles />
+          
+          <View style={styles.headerTop}>
+            <Text style={styles.headerIcon}>📄</Text>
+          </View>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle}>Factura</Text>
+            <View style={styles.titleUnderline} />
+          </View>
+          
+          <Text style={styles.headerSubtitle}>
+            Detalles de tu factura
+          </Text>
         </View>
         
-        <View style={styles.centerContainer}>
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-          </View>
-          <Text style={styles.emptyTitle}>Error al cargar</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>📄</Text>
+          <Text style={styles.emptyTitle}>Error al cargar la factura</Text>
           <Text style={styles.emptySubtitle}>
             No se pudo cargar la información de la factura
           </Text>
           <TouchableOpacity 
-            style={styles.primaryButton}
+            style={styles.exploreButton}
             onPress={() => router.push('/consumidor/MisPedidos')}
           >
-            <Text style={styles.primaryButtonText}>Volver a mis pedidos</Text>
+            <Text style={styles.exploreButtonText}>Volver a mis pedidos</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -448,23 +466,24 @@ const Factura = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FBF7" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       
-      {/* Header */}
+      {/* Header con efectos visuales */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#2D3E2B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Factura</Text>
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={fetchFacturaData}
-        >
-          <Ionicons name="refresh-outline" size={22} color="#5A8F48" />
-        </TouchableOpacity>
+        <FloatingCircles />
+        
+        <View style={styles.headerTop}>
+          <Text style={styles.headerIcon}>📄</Text>
+        </View>
+        
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Factura</Text>
+          <View style={styles.titleUnderline} />
+        </View>
+        
+        <Text style={styles.headerSubtitle}>
+          Detalles de tu factura
+        </Text>
       </View>
 
       {/* Contenido de la factura */}
@@ -517,6 +536,7 @@ const Factura = () => {
               <Text style={styles.seccionTitulo}>ESTADO</Text>
               <Text style={styles.estadoLabel}>ESTADO ACTUAL</Text>
               <View style={[styles.estadoBadge, { backgroundColor: estadoInfo.bg }]}>
+                <View style={[styles.estadoDot, { backgroundColor: estadoInfo.color }]} />
                 <Text style={[styles.estadoTexto, { color: estadoInfo.color }]}>
                   {estadoInfo.texto}
                 </Text>
@@ -602,7 +622,7 @@ const Factura = () => {
               style={[styles.botonAccion, styles.shareButton]}
               onPress={handleCompartirImagen}
             >
-              <FontAwesome name="share-alt" size={16} color="#5A8F48" />
+              <FontAwesome name="share-alt" size={16} color="#FF6B35" />
               <Text style={styles.shareButtonText}>Compartir</Text>
             </TouchableOpacity>
 
@@ -610,9 +630,18 @@ const Factura = () => {
               style={[styles.botonAccion, styles.pedidoButton]}
               onPress={() => router.push(`/consumidor/PedidoDetalle?id=${idPedido}`)}
             >
-              <Ionicons name="cube-outline" size={16} color="#2D3E2B" />
+              <Ionicons name="cube-outline" size={16} color="#1F2937" />
               <Text style={styles.pedidoButtonText}>Ver pedido</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Footer informativo */}
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>Gracias por tu compra en</Text>
+            <Text style={styles.footerEmpresa}>MERCADO LOCAL - IA</Text>
+            <Text style={styles.footerNota}>
+              Este documento es una factura válida para efectos tributarios
+            </Text>
           </View>
         </View>
         
@@ -627,38 +656,173 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FBF7',
+    backgroundColor: "#f8f9fa",
   },
-  centerContainer: {
+  
+  // Efectos de círculos flotantes - MISMO QUE EXPLORAR, CARRITO Y MIS PEDIDOS
+  floatingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 100,
+    opacity: 0.15,
+  },
+  circle1: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#FF6B35',
+    top: 20,
+    left: 20,
+  },
+  circle2: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#3498DB',
+    top: 60,
+    right: 30,
+  },
+  circle3: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#9B59B6',
+    bottom: 40,
+    left: 40,
+  },
+  circle4: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#2ECC71',
+    bottom: 80,
+    right: 50,
+  },
+  
+  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
   },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#FF6B35",
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  
+  // Header mejorado - MISMO ESTILO QUE TODAS LAS PANTALLAS
   header: {
-    flexDirection: 'row',
+    backgroundColor: "white",
+    paddingTop: 50,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+    alignItems: "center",
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    zIndex: 1,
+  },
+  headerIcon: {
+    fontSize: 40,
+  },
+  
+  // Título con efectos
+  titleContainer: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8F5E9',
-  },
-  backButton: {
-    padding: 8,
-  },
-  refreshButton: {
-    padding: 8,
+    marginBottom: 8,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2D3E2B',
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2C3E50",
+    textAlign: 'center',
+    fontFamily: "System",
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
   },
-  headerRight: {
-    width: 40,
+  titleUnderline: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginTop: 6,
   },
+  headerSubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    marginTop: 4,
+    textAlign: "center",
+    fontFamily: "System",
+    zIndex: 1,
+  },
+  
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    backgroundColor: "#f8f9fa",
+  },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: 20,
+    color: "#9CA3AF",
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 12,
+    fontFamily: "System",
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 30,
+    fontFamily: "System",
+  },
+  
+  // Botón Explorar - COLOR NARANJA
+  exploreButton: {
+    backgroundColor: "#FF6B35",
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  exploreButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "System",
+  },
+  
   scrollView: {
     flex: 1,
   },
@@ -666,61 +830,77 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 20,
   },
+  
+  // Contenedor de factura - MISMO ESTILO QUE TARJETAS
   facturaContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    overflow: "hidden",
   },
   
   // 1. TÍTULO
   tituloSeccion: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   nombrePlataforma: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#5A8F48',
-    marginBottom: 4,
+    color: '#FF6B35',
+    marginBottom: 8,
     textAlign: 'center',
+    fontFamily: "System",
   },
   facturaTitulo: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '900',
-    color: '#2D3E2B',
+    color: '#1F2937',
+    fontFamily: "System",
   },
   
   // 2. NÚMERO DE FACTURA
   numeroFacturaContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    padding: 20,
+    backgroundColor: '#FFF2E8',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
   },
   numeroFacturaLabel: {
     fontSize: 12,
-    color: '#6B7F69',
+    color: '#6B7280',
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontFamily: "System",
+    letterSpacing: 1,
   },
   numeroFactura: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '900',
-    color: '#5A8F48',
-    marginBottom: 2,
+    color: '#FF6B35',
+    marginBottom: 4,
+    fontFamily: "System",
   },
   idPedido: {
-    fontSize: 12,
-    color: '#9AAA98',
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontFamily: "System",
   },
   
   // 3. DETALLES Y ESTADO
   detallesGrid: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   detallesColumna: {
     flex: 1,
@@ -731,216 +911,241 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   seccionTitulo: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#2D3E2B',
+    color: '#6B7280',
     marginBottom: 12,
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontFamily: "System",
   },
   detalleFila: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   detalleLabel: {
     fontSize: 11,
-    color: '#9AAA98',
+    color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 2,
+    marginBottom: 4,
+    fontFamily: "System",
   },
   detalleValor: {
     fontSize: 15,
-    color: '#2D3E2B',
+    color: '#1F2937',
     fontWeight: '600',
+    fontFamily: "System",
   },
   estadoLabel: {
     fontSize: 11,
-    color: '#9AAA98',
+    color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 8,
     textAlign: 'right',
+    fontFamily: "System",
   },
   estadoBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    minWidth: 100,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 100,
+    justifyContent: 'center',
+  },
+  estadoDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   estadoTexto: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: "System",
   },
   
   // 4. TABLA DE PRODUCTOS
   tablaProductos: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   tablaHeader: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#E3EBD9',
+    borderBottomColor: '#FF6B35',
     marginBottom: 8,
+    backgroundColor: '#FFF2E8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
   tablaHeaderText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6B7F69',
+    color: '#1F2937',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily: "System",
   },
   tablaFila: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#ECF2E3',
+    borderBottomColor: '#FFD3BE',
     alignItems: 'center',
+    paddingHorizontal: 12,
   },
   tablaTexto: {
     fontSize: 14,
-    color: '#2D3E2B',
+    color: '#1F2937',
+    fontFamily: "System",
   },
   tablaSubtotal: {
     fontSize: 14,
-    color: '#5A8F48',
+    color: '#FF6B35',
     fontWeight: '700',
+    fontFamily: "System",
   },
   
   // 5. TOTALES
   totalesContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
+    backgroundColor: '#FFF2E8',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
   },
   totalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   totalLabel: {
-    fontSize: 14,
-    color: '#6B7F69',
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '500',
+    fontFamily: "System",
   },
   totalValor: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#2D3E2B',
+    color: '#1F2937',
+    fontFamily: "System",
   },
   separadorDelgado: {
     height: 1,
-    backgroundColor: '#ECF2E3',
-    marginVertical: 10,
+    backgroundColor: '#FFD3BE',
+    marginVertical: 12,
   },
   totalFinalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   totalFinalLabel: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#2D3E2B',
+    color: '#1F2937',
     textTransform: 'uppercase',
+    fontFamily: "System",
   },
   totalFinalValor: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '900',
-    color: '#5A8F48',
+    color: '#FF6B35',
+    fontFamily: "System",
   },
   
   // 6. BOTONES
   botonesContainer: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
+    gap: 12,
+    marginBottom: 24,
   },
   botonAccion: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   downloadButton: {
-    backgroundColor: '#5A8F48',
+    backgroundColor: '#FF6B35',
   },
   shareButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#5A8F48',
+    borderColor: '#FF6B35',
   },
   pedidoButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#E3EBD9',
+    borderColor: '#E5E7EB',
   },
   
   // Textos de botones específicos
   downloadButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
+    fontFamily: "System",
   },
   shareButtonText: {
-    color: '#5A8F48',
-    fontSize: 13,
+    color: '#FF6B35',
+    fontSize: 14,
     fontWeight: '700',
+    fontFamily: "System",
   },
   pedidoButtonText: {
-    color: '#2D3E2B',
-    fontSize: 13,
+    color: '#1F2937',
+    fontSize: 14,
     fontWeight: '700',
+    fontFamily: "System",
+  },
+  
+  // Footer informativo
+  footerContainer: {
+    alignItems: 'center',
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: "System",
+  },
+  footerEmpresa: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF6B35',
+    marginTop: 4,
+    fontFamily: "System",
+  },
+  footerNota: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+    fontFamily: "System",
   },
   
   // UTILIDADES
   separador: {
     height: 1,
-    backgroundColor: '#ECF2E3',
+    backgroundColor: '#E5E7EB',
     marginVertical: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7F69',
-    fontWeight: '600',
-  },
-  
-  // Estilos para pantalla de error
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#ECF2E3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2D3E2B',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#9AAA98',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  primaryButton: {
-    backgroundColor: '#5A8F48',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
   bottomSpacing: {
     height: 20,
