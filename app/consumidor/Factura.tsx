@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Image,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -33,6 +34,15 @@ interface DetallePedido {
   };
 }
 
+interface Cliente {
+  id: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  cedula?: string;
+  telefono?: string;
+}
+
 interface Pedido {
   idPedido: string;
   fechaPedido: string;
@@ -42,11 +52,11 @@ interface Pedido {
   total: number;
   metodoPago: string;
   direccionEntrega?: string;
-  cliente?: {
-    nombre: string;
-    email: string;
-  };
+  cliente?: Cliente;
 }
+
+// Importar el logo - RUTA CORREGIDA
+const LOGO_PATH = require('../../assets/images/Logo.png');
 
 // Componente para los círculos flotantes del fondo
 const FloatingCircles = () => {
@@ -72,8 +82,9 @@ const Factura = () => {
   
   const facturaRef = React.useRef<View>(null);
 
-  // NOMBRE FIJO DE LA PLATAFORMA
-  const NOMBRE_PLATAFORMA = "MERCADO LOCAL - IA";
+  // NOMBRES DE LA PLATAFORMA ACTUALIZADOS
+  const NOMBRE_PRINCIPAL = "My Harvest";
+  const MARCA_REGISTRADA = "Mercado Local IA";
 
   // Generar número de factura
   const generarNumeroFactura = (idPedido: string) => {
@@ -186,6 +197,17 @@ const Factura = () => {
     return estados[estado] || { color: "#6B7280", bg: "#F3F4F6", texto: estado };
   };
 
+  // Formatear cédula (agregar puntos)
+  const formatearCedula = (cedula?: string) => {
+    if (!cedula) return "No especificada";
+    // Formato: XX.XXX.XXX-X
+    const limpiada = cedula.replace(/\D/g, '');
+    if (limpiada.length >= 8) {
+      return `${limpiada.substring(0, 2)}.${limpiada.substring(2, 5)}.${limpiada.substring(5, 8)}-${limpiada.substring(8)}`;
+    }
+    return cedula;
+  };
+
   // Descargar/Compartir PDF
   const handleDescargarPDF = async () => {
     if (!pedido) return;
@@ -194,7 +216,7 @@ const Factura = () => {
     try {
       const numeroFactura = generarNumeroFactura(pedido.idPedido);
       
-      // Generar HTML para el PDF
+      // Generar HTML para el PDF optimizado y profesional
       const html = `
         <!DOCTYPE html>
         <html>
@@ -202,161 +224,548 @@ const Factura = () => {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body {
-              font-family: 'Helvetica', 'Arial', sans-serif;
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+            
+            * {
+              box-sizing: border-box;
               margin: 0;
-              padding: 20px;
-              color: #333;
+              padding: 0;
             }
+            
+            body {
+              font-family: 'Poppins', 'Helvetica', 'Arial', sans-serif;
+              margin: 0;
+              padding: 15px;
+              color: #333;
+              background: #ffffff;
+              width: 100%;
+              min-height: 100vh;
+              font-size: 12px;
+            }
+            
             .factura-container {
-              max-width: 800px;
+              max-width: 200mm; /* Un poco más pequeño */
+              min-height: 280mm; /* Reducido */
               margin: 0 auto;
               background: white;
-              padding: 30px;
-              border-radius: 12px;
-              border: 2px solid #FF6B35;
+              padding: 15mm 15mm; /* Márgenes reducidos */
+              border: 1.5px solid #FF6B35;
+              box-shadow: 0 4px 20px rgba(255, 107, 53, 0.1);
+              position: relative;
+              overflow: hidden;
+              page-break-inside: avoid;
             }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            .empresa-nombre {
-              font-size: 24px;
-              font-weight: bold;
-              color: #FF6B35;
-              margin-bottom: 8px;
-            }
-            .factura-titulo {
-              font-size: 32px;
-              font-weight: 900;
-              color: #1F2937;
-              margin: 0;
-            }
-            .numero-factura {
-              text-align: center;
-              padding: 15px;
+            
+            /* Header más compacto */
+            .factura-header {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
               margin-bottom: 20px;
+              position: relative;
+              z-index: 1;
+              text-align: center;
+              border-bottom: 1.5px solid #FF6B35;
+              padding-bottom: 15px;
             }
-            .grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              margin-bottom: 30px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 30px;
-            }
-            th {
-              background: #FFF2E8;
-              padding: 12px;
-              text-align: left;
-              border-bottom: 2px solid #FF6B35;
-              color: #1F2937;
-              font-size: 12px;
+            
+            .logo-titulo {
+              font-size: 20px; /* Reducido */
+              font-weight: 800;
+              color: #FF6B35;
+              margin-bottom: 3px;
               text-transform: uppercase;
               letter-spacing: 1px;
             }
-            td {
-              padding: 12px;
-              border-bottom: 1px solid #FFD3BE;
+            
+            .logo-subtitle {
+              font-size: 10px; /* Reducido */
+              color: #6B7280;
+              font-weight: 500;
+              letter-spacing: 0.8px;
+              margin-bottom: 10px;
             }
-            .totales {
-              background: #FFF2E8;
-              padding: 20px;
+            
+            .factura-titulo {
+              font-size: 28px; /* Reducido */
+              font-weight: 900;
+              color: #1F2937;
+              margin: 8px 0;
+              position: relative;
+              display: inline-block;
+            }
+            
+            .factura-titulo:after {
+              content: '';
+              position: absolute;
+              bottom: -6px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 80px;
+              height: 3px;
+              background: #FF6B35;
+              border-radius: 2px;
+            }
+            
+            .numero-factura-container {
+              text-align: center;
+              padding: 15px;
+              margin-bottom: 20px;
+              background: linear-gradient(135deg, #FFF2E8 0%, #FFE4CC 100%);
               border-radius: 8px;
-              border: 2px solid #FF6B35;
-              max-width: 350px;
-              margin-left: auto;
+              border: 1.5px dashed #FF6B35;
+              position: relative;
+              z-index: 1;
             }
-            .total-final {
-              font-size: 24px;
+            
+            .numero-factura-label {
+              font-size: 10px;
+              color: #FF6B35;
+              font-weight: 700;
+              margin-bottom: 6px;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+            }
+            
+            .numero-factura {
+              font-size: 24px; /* Reducido */
               font-weight: 900;
               color: #FF6B35;
-              margin-top: 10px;
+              margin-bottom: 4px;
             }
+            
+            .id-pedido {
+              font-size: 11px;
+              color: #9CA3AF;
+              font-weight: 500;
+            }
+            
+            /* Sección de información - dos columnas */
+            .info-container {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+              gap: 15px;
+            }
+            
+            .info-columna {
+              flex: 1;
+              background: #f8f9fa;
+              padding: 15px;
+              border-radius: 6px;
+              border: 1px solid #E5E7EB;
+            }
+            
+            .info-titulo {
+              font-size: 12px;
+              font-weight: 700;
+              color: #1F2937;
+              margin-bottom: 10px;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              border-bottom: 1.5px solid #FF6B35;
+              padding-bottom: 5px;
+              display: inline-block;
+            }
+            
+            .info-fila {
+              margin-bottom: 8px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              page-break-inside: avoid;
+            }
+            
+            .info-label {
+              font-size: 10px;
+              color: #6B7280;
+              font-weight: 600;
+              flex: 1;
+            }
+            
+            .info-valor {
+              font-size: 11px;
+              color: #1F2937;
+              font-weight: 600;
+              flex: 2;
+              text-align: right;
+            }
+            
+            /* Tabla de productos más compacta */
+            .tabla-container {
+              margin-bottom: 20px;
+              page-break-inside: avoid;
+              overflow: hidden;
+            }
+            
+            .tabla-titulo {
+              font-size: 12px;
+              font-weight: 700;
+              color: #1F2937;
+              margin-bottom: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              border-bottom: 1.5px solid #FF6B35;
+              padding-bottom: 5px;
+              display: inline-block;
+            }
+            
+            .productos-table {
+              width: 100%;
+              border-collapse: collapse;
+              border-spacing: 0;
+              font-size: 10px;
+              page-break-inside: avoid;
+            }
+            
+            .productos-table th {
+              background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+              padding: 10px 6px;
+              text-align: left;
+              color: white;
+              font-size: 9px;
+              text-transform: uppercase;
+              letter-spacing: 0.8px;
+              font-weight: 700;
+              border: none;
+            }
+            
+            .productos-table th:first-child {
+              border-radius: 4px 0 0 0;
+            }
+            
+            .productos-table th:last-child {
+              border-radius: 0 4px 0 0;
+            }
+            
+            .productos-table td {
+              padding: 8px 6px;
+              border-bottom: 1px solid #FFD3BE;
+              background: white;
+              vertical-align: top;
+              page-break-inside: avoid;
+            }
+            
+            .productos-table tr:last-child td {
+              border-bottom: none;
+            }
+            
+            .productos-table tr:nth-child(even) td {
+              background: #FFF9F5;
+            }
+            
+            .producto-nombre {
+              font-weight: 600;
+              color: #1F2937;
+              max-width: 180px;
+              word-wrap: break-word;
+            }
+            
+            /* Totales más compactos */
+            .totales-container {
+              background: linear-gradient(135deg, #FFF2E8 0%, #FFE4CC 100%);
+              padding: 15px;
+              border-radius: 8px;
+              border: 1.5px solid #FF6B35;
+              width: 100%;
+              max-width: 350px;
+              margin-left: auto;
+              position: relative;
+              z-index: 1;
+              page-break-inside: avoid;
+            }
+            
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+              font-size: 12px;
+            }
+            
+            .total-row.final {
+              margin-top: 12px;
+              padding-top: 12px;
+              border-top: 1.5px solid #FF8E53;
+            }
+            
+            .total-label {
+              color: #6B7280;
+              font-weight: 600;
+            }
+            
+            .total-value {
+              color: #1F2937;
+              font-weight: 700;
+            }
+            
+            .total-final-value {
+              font-size: 20px; /* Reducido */
+              font-weight: 900;
+              color: #FF6B35;
+            }
+            
+            /* Footer más pequeño */
             .footer {
               text-align: center;
               padding-top: 20px;
-              border-top: 2px solid #FFD3BE;
+              border-top: 1.5px solid #FFD3BE;
               color: #6B7280;
-              font-size: 12px;
+              font-size: 9px;
+              position: relative;
+              z-index: 1;
+              margin-top: 25px;
+              page-break-inside: avoid;
+            }
+            
+            .footer-brand {
+              font-size: 14px; /* Reducido */
+              font-weight: 800;
+              color: #FF6B35;
+              margin-bottom: 4px;
+              letter-spacing: 0.8px;
+            }
+            
+            .footer-trademark {
+              font-size: 8px;
+              color: #9CA3AF;
+              font-style: italic;
+              margin-top: 3px;
+            }
+            
+            /* MARCA DE AGUA MEJORADA */
+            .watermark {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 80px; /* Reducido y más bonito */
+              font-weight: 900;
+              color: rgba(255, 107, 53, 0.08); /* Más sutil pero visible */
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
+              opacity: 0.7;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
+              letter-spacing: 2px;
+              font-family: 'Poppins', sans-serif;
+            }
+            
+            /* Segundo watermark más tenue */
+            .watermark-back {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(45deg);
+              font-size: 70px;
+              font-weight: 900;
+              color: rgba(52, 152, 219, 0.04); /* Azul tenue */
+              z-index: 0;
+              pointer-events: none;
+              white-space: nowrap;
+              opacity: 0.5;
+              text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.03);
+              letter-spacing: 1px;
+              font-family: 'Poppins', sans-serif;
+            }
+            
+            /* Asegurar que el contenido tenga fondo blanco */
+            .factura-container > *:not(.watermark):not(.watermark-back) {
+              position: relative;
+              z-index: 1;
+              background: transparent;
+            }
+            
+            /* Control de saltos de página */
+            .keep-together {
+              page-break-inside: avoid;
+            }
+            
+            /* Responsive para PDF */
+            @media print {
+              body {
+                padding: 0;
+                margin: 0;
+                background: white;
+              }
+              
+              .factura-container {
+                max-width: 100%;
+                min-height: 280mm;
+                padding: 10mm 15mm;
+                margin: 0;
+                border: none;
+                box-shadow: none;
+              }
+              
+              .watermark {
+                font-size: 70px;
+              }
+              
+              .watermark-back {
+                font-size: 60px;
+              }
+            }
+            
+            /* Separador */
+            .separador {
+              height: 1px;
+              background: #FFD3BE;
+              margin: 15px 0;
             }
           </style>
         </head>
         <body>
           <div class="factura-container">
-            <div class="header">
-              <div class="empresa-nombre">${NOMBRE_PLATAFORMA}</div>
+            <!-- MARCA DE AGUA MEJORADA -->
+            <div class="watermark">${NOMBRE_PRINCIPAL}</div>
+            <div class="watermark-back">${MARCA_REGISTRADA}</div>
+            
+            <!-- Header compacto -->
+            <div class="factura-header">
+              <h1 class="logo-titulo">${NOMBRE_PRINCIPAL}</h1>
+              <div class="logo-subtitle">${MARCA_REGISTRADA}</div>
               <h1 class="factura-titulo">FACTURA</h1>
             </div>
             
-            <div class="numero-factura">
-              <div style="font-size: 11px; color: #6B7280;">Nº FACTURA</div>
-              <div style="font-size: 22px; font-weight: 900; color: #FF6B35;">
-                ${numeroFactura}
-              </div>
-              <div style="font-size: 10px; color: #9CA3AF;">Pedido #${pedido.idPedido}</div>
+            <!-- Número de factura -->
+            <div class="numero-factura-container">
+              <div class="numero-factura-label">N° FACTURA</div>
+              <div class="numero-factura">${numeroFactura}</div>
+              <div class="id-pedido">Pedido #${pedido.idPedido}</div>
             </div>
             
-            <div class="grid">
-              <div>
-                <h3>Detalles del Pedido</h3>
-                <div>
-                  <div>📅 Fecha: ${formatearFecha(pedido.fechaPedido)}</div>
-                  <div>💳 Método de pago: ${pedido.metodoPago}</div>
-                </div>
-              </div>
-              <div>
-                <h3>Estado</h3>
-                <div>
-                  <div style="font-weight: bold; color: ${getEstadoInfo(pedido.estadoPedido).color}">
-                    ${getEstadoInfo(pedido.estadoPedido).texto}
+            <!-- Información en dos columnas -->
+            <div class="info-container">
+              <!-- Columna izquierda: Información del cliente -->
+              <div class="info-columna keep-together">
+                <h3 class="info-titulo">Datos del Cliente</h3>
+                
+                ${pedido.cliente ? `
+                  <div class="info-fila">
+                    <span class="info-label">Nombre:</span>
+                    <span class="info-valor">${pedido.cliente.nombre} ${pedido.cliente.apellido}</span>
                   </div>
+                  
+                  ${pedido.cliente.cedula ? `
+                    <div class="info-fila">
+                      <span class="info-label">Cédula:</span>
+                      <span class="info-valor">${formatearCedula(pedido.cliente.cedula)}</span>
+                    </div>
+                  ` : ''}
+                  
+                  <div class="info-fila">
+                    <span class="info-label">Email:</span>
+                    <span class="info-valor">${pedido.cliente.email}</span>
+                  </div>
+                  
+                  ${pedido.cliente.telefono ? `
+                    <div class="info-fila">
+                      <span class="info-label">Teléfono:</span>
+                      <span class="info-valor">${pedido.cliente.telefono}</span>
+                    </div>
+                  ` : ''}
+                ` : `
+                  <div class="info-fila">
+                    <span class="info-label">Cliente:</span>
+                    <span class="info-valor">No disponible</span>
+                  </div>
+                `}
+              </div>
+              
+              <!-- Columna derecha: Información del pedido -->
+              <div class="info-columna keep-together">
+                <h3 class="info-titulo">Datos del Pedido</h3>
+                
+                <div class="info-fila">
+                  <span class="info-label">Fecha:</span>
+                  <span class="info-valor">${formatearFecha(pedido.fechaPedido)}</span>
+                </div>
+                
+                <div class="info-fila">
+                  <span class="info-label">Método de Pago:</span>
+                  <span class="info-valor">${
+                    pedido.metodoPago === "EFECTIVO" ? "Efectivo" :
+                    pedido.metodoPago === "TRANSFERENCIA" ? "Transferencia" :
+                    pedido.metodoPago === "TARJETA" ? "Tarjeta" : pedido.metodoPago
+                  }</span>
+                </div>
+                
+                ${pedido.direccionEntrega ? `
+                  <div class="info-fila">
+                    <span class="info-label">Dirección:</span>
+                    <span class="info-valor">${pedido.direccionEntrega}</span>
+                  </div>
+                ` : ''}
+                
+                <div class="info-fila">
+                  <span class="info-label">Estado:</span>
+                  <span class="info-valor">${getEstadoInfo(pedido.estadoPedido).texto}</span>
                 </div>
               </div>
             </div>
             
-            <table>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Cant.</th>
-                  <th>Precio Unit.</th>
-                  <th>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${detalles.map(d => `
-                  <tr>
-                    <td>${d.producto?.nombreProducto || "Producto"}</td>
-                    <td>${d.cantidad}</td>
-                    <td>$${(d.subtotal / d.cantidad).toFixed(2)}</td>
-                    <td>$${d.subtotal.toFixed(2)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+            <div class="separador"></div>
             
-            <div class="totales">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>Subtotal:</span>
-                <span>$${pedido.subtotal.toFixed(2)}</span>
+            <!-- Tabla de productos -->
+            <div class="tabla-container keep-together">
+              <h3 class="tabla-titulo">Detalle de Productos</h3>
+              <table class="productos-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50%; text-align: left;">Producto</th>
+                    <th style="width: 15%; text-align: center;">Cant.</th>
+                    <th style="width: 17%; text-align: right;">P. Unitario</th>
+                    <th style="width: 18%; text-align: right;">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${detalles.map(d => `
+                    <tr class="keep-together">
+                      <td class="producto-nombre">${d.producto?.nombreProducto || "Producto"}</td>
+                      <td style="text-align: center;">${d.cantidad}</td>
+                      <td style="text-align: right;">$${(d.subtotal / d.cantidad).toFixed(2)}</td>
+                      <td style="text-align: right; font-weight: 600;">$${d.subtotal.toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="separador"></div>
+            
+            <!-- Totales -->
+            <div class="totales-container keep-together">
+              <div class="total-row">
+                <span class="total-label">Subtotal:</span>
+                <span class="total-value">$${pedido.subtotal.toFixed(2)}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span>IVA (12%):</span>
-                <span>$${pedido.iva.toFixed(2)}</span>
+              
+              <div class="total-row">
+                <span class="total-label">IVA (12%):</span>
+                <span class="total-value">$${pedido.iva.toFixed(2)}</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-weight: bold;">
-                <span>TOTAL:</span>
-                <span class="total-final">$${pedido.total.toFixed(2)}</span>
+              
+              <div class="total-row final">
+                <span class="total-label" style="font-size: 14px;">TOTAL A PAGAR:</span>
+                <span class="total-final-value">$${pedido.total.toFixed(2)}</span>
               </div>
             </div>
             
-            <div class="footer">
-              <p>Gracias por tu compra en ${NOMBRE_PLATAFORMA}</p>
-              <p>Este documento es una factura válida para efectos tributarios</p>
+            <!-- Footer -->
+            <div class="footer keep-together">
+              <div class="footer-brand">${NOMBRE_PRINCIPAL}</div>
+              <div style="margin-bottom: 6px;">Gracias por confiar en nuestra plataforma de productos frescos y locales</div>
+              <div class="footer-trademark">${MARCA_REGISTRADA} - Documento válido para efectos tributarios</div>
+              <div style="margin-top: 12px; font-size: 8px; color: #9CA3AF; border-top: 1px solid #E5E7EB; padding-top: 8px;">
+                <div>Fecha de generación: ${new Date().toLocaleDateString('es-ES', { 
+                  day: '2-digit', 
+                  month: '2-digit', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</div>
+                <div style="margin-top: 3px;">Este documento es una representación digital de la factura original</div>
+              </div>
             </div>
           </div>
         </body>
@@ -364,7 +773,11 @@ const Factura = () => {
       `;
       
       // Generar y compartir PDF
-      const { uri } = await Print.printToFileAsync({ html });
+      const { uri } = await Print.printToFileAsync({ 
+        html,
+        width: 595,  // Ancho A4 en puntos
+        height: 842, // Alto A4 en puntos
+      });
       
       if (Platform.OS === 'ios') {
         await Sharing.shareAsync(uri, {
@@ -399,7 +812,7 @@ const Factura = () => {
       
       await Share.share({
         title: `Factura ${generarNumeroFactura(pedido.idPedido)}`,
-        message: `Factura de ${NOMBRE_PLATAFORMA}\nPedido #${pedido.idPedido}\nTotal: $${pedido.total.toFixed(2)}`,
+        message: `Factura de ${NOMBRE_PRINCIPAL}\nPedido #${pedido.idPedido}\nTotal: $${pedido.total.toFixed(2)}`,
         url: Platform.OS === 'ios' ? uri : `file://${uri}`,
       });
     } catch (error: any) {
@@ -494,10 +907,23 @@ const Factura = () => {
       >
         <View ref={facturaRef} style={styles.facturaContainer}>
           
-          {/* 1. TÍTULO DE LA FACTURA */}
-          <View style={styles.tituloSeccion}>
-            <Text style={styles.nombrePlataforma}>{NOMBRE_PLATAFORMA}</Text>
-            <Text style={styles.facturaTitulo}>FACTURA</Text>
+          {/* HEADER CON LOGO ARRIBA Y TÍTULO CENTRADO */}
+          <View style={styles.facturaHeader}>
+            {/* Logo en la parte superior */}
+            <View style={styles.logoContainer}>
+              <Image 
+                source={LOGO_PATH} 
+                style={styles.logoImagen}
+                resizeMode="contain"
+              />
+              <Text style={styles.marcaRegistrada}>{MARCA_REGISTRADA}</Text>
+            </View>
+            
+            {/* Título "FACTURA" centrado */}
+            <View style={styles.tituloContainer}>
+              <Text style={styles.facturaTitulo}>FACTURA</Text>
+              <View style={styles.tituloSubrayado} />
+            </View>
           </View>
 
           {/* 2. NÚMERO DE FACTURA Y PEDIDO */}
@@ -509,12 +935,55 @@ const Factura = () => {
 
           <View style={styles.separador} />
 
-          {/* 3. DETALLES DEL PEDIDO Y ESTADO EN DOS COLUMNAS */}
+          {/* 3. INFORMACIÓN DEL CLIENTE (en la app también) */}
+          <Text style={styles.seccionTitulo}>👤 INFORMACIÓN DEL CLIENTE</Text>
+          
+          <View style={styles.infoClienteContainer}>
+            {pedido.cliente ? (
+              <>
+                <View style={styles.infoFila}>
+                  <Text style={styles.infoLabel}>Nombre completo:</Text>
+                  <Text style={styles.infoValor}>
+                    {pedido.cliente.nombre} {pedido.cliente.apellido}
+                  </Text>
+                </View>
+                
+                {pedido.cliente.cedula && (
+                  <View style={styles.infoFila}>
+                    <Text style={styles.infoLabel}>Cédula:</Text>
+                    <Text style={styles.infoValor}>
+                      {formatearCedula(pedido.cliente.cedula)}
+                    </Text>
+                  </View>
+                )}
+                
+                <View style={styles.infoFila}>
+                  <Text style={styles.infoLabel}>Email:</Text>
+                  <Text style={styles.infoValor}>{pedido.cliente.email}</Text>
+                </View>
+                
+                {pedido.cliente.telefono && (
+                  <View style={styles.infoFila}>
+                    <Text style={styles.infoLabel}>Teléfono:</Text>
+                    <Text style={styles.infoValor}>{pedido.cliente.telefono}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={styles.sinDatosCliente}>
+                Información del cliente no disponible
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.separador} />
+
+          {/* 4. DETALLES DEL PEDIDO Y ESTADO */}
           <View style={styles.detallesGrid}>
             
             {/* Columna izquierda: Detalles */}
             <View style={styles.detallesColumna}>
-              <Text style={styles.seccionTitulo}>DETALLES DEL PEDIDO</Text>
+              <Text style={styles.seccionTitulo}>📋 DETALLES DEL PEDIDO</Text>
               
               <View style={styles.detalleFila}>
                 <Text style={styles.detalleLabel}>FECHA DE EMISIÓN</Text>
@@ -533,7 +1002,7 @@ const Factura = () => {
 
             {/* Columna derecha: Estado */}
             <View style={styles.estadoColumna}>
-              <Text style={styles.seccionTitulo}>ESTADO</Text>
+              <Text style={styles.seccionTitulo}>📊 ESTADO</Text>
               <Text style={styles.estadoLabel}>ESTADO ACTUAL</Text>
               <View style={[styles.estadoBadge, { backgroundColor: estadoInfo.bg }]}>
                 <View style={[styles.estadoDot, { backgroundColor: estadoInfo.color }]} />
@@ -546,8 +1015,8 @@ const Factura = () => {
 
           <View style={styles.separador} />
 
-          {/* 4. PRODUCTOS DEL PEDIDO */}
-          <Text style={styles.seccionTitulo}>PRODUCTOS DEL PEDIDO</Text>
+          {/* 5. PRODUCTOS DEL PEDIDO */}
+          <Text style={styles.seccionTitulo}>📦 PRODUCTOS DEL PEDIDO</Text>
           
           <View style={styles.tablaProductos}>
             {/* Encabezado de la tabla */}
@@ -579,7 +1048,7 @@ const Factura = () => {
 
           <View style={styles.separador} />
 
-          {/* 5. TOTALES */}
+          {/* 6. TOTALES */}
           <View style={styles.totalesContainer}>
             <View style={styles.totalFila}>
               <Text style={styles.totalLabel}>Subtotal</Text>
@@ -594,14 +1063,14 @@ const Factura = () => {
             <View style={styles.separadorDelgado} />
             
             <View style={styles.totalFinalFila}>
-              <Text style={styles.totalFinalLabel}>TOTAL</Text>
+              <Text style={styles.totalFinalLabel}>TOTAL A PAGAR</Text>
               <Text style={styles.totalFinalValor}>${pedido.total.toFixed(2)}</Text>
             </View>
           </View>
 
           <View style={styles.separador} />
 
-          {/* 6. BOTONES EN EL FOOTER */}
+          {/* 7. BOTONES EN EL FOOTER */}
           <View style={styles.botonesContainer}>
             <TouchableOpacity
               style={[styles.botonAccion, styles.downloadButton]}
@@ -638,9 +1107,9 @@ const Factura = () => {
           {/* Footer informativo */}
           <View style={styles.footerContainer}>
             <Text style={styles.footerText}>Gracias por tu compra en</Text>
-            <Text style={styles.footerEmpresa}>MERCADO LOCAL - IA</Text>
+            <Text style={styles.footerEmpresa}>{NOMBRE_PRINCIPAL}</Text>
             <Text style={styles.footerNota}>
-              Este documento es una factura válida para efectos tributarios
+              {MARCA_REGISTRADA} - Documento válido para efectos tributarios
             </Text>
           </View>
         </View>
@@ -659,7 +1128,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f9fa",
   },
   
-  // Efectos de círculos flotantes - MISMO QUE EXPLORAR, CARRITO Y MIS PEDIDOS
+  // Efectos de círculos flotantes
   floatingContainer: {
     position: 'absolute',
     top: 0,
@@ -716,7 +1185,7 @@ const styles = StyleSheet.create({
     fontFamily: "System",
   },
   
-  // Header mejorado - MISMO ESTILO QUE TODAS LAS PANTALLAS
+  // Header mejorado
   header: {
     backgroundColor: "white",
     paddingTop: 50,
@@ -831,73 +1300,132 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   
-  // Contenedor de factura - MISMO ESTILO QUE TARJETAS
+  // Contenedor de factura
   facturaContainer: {
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 24,
+    padding: 20, // Reducido
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderWidth: 2,
+    borderColor: "#FF6B35",
     overflow: "hidden",
   },
   
-  // 1. TÍTULO
-  tituloSeccion: {
+  // 1. HEADER CON LOGO ARRIBA Y TÍTULO CENTRADO
+  facturaHeader: {
+    flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20, // Reducido
   },
-  nombrePlataforma: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FF6B35',
-    marginBottom: 8,
-    textAlign: 'center',
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 15, // Reducido
+  },
+  logoImagen: {
+    width: 90, // Reducido
+    height: 35, // Reducido
+    marginBottom: 5,
+  },
+  marcaRegistrada: {
+    fontSize: 11, // Reducido
+    color: '#6B7280',
+    fontWeight: '500',
     fontFamily: "System",
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  tituloContainer: {
+    alignItems: 'center',
   },
   facturaTitulo: {
-    fontSize: 32,
+    fontSize: 28, // Reducido
     fontWeight: '900',
     color: '#1F2937',
     fontFamily: "System",
+    textAlign: 'center',
+  },
+  tituloSubrayado: {
+    width: 70, // Reducido
+    height: 3, // Reducido
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+    marginTop: 6,
   },
   
   // 2. NÚMERO DE FACTURA
   numeroFacturaContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-    padding: 20,
+    marginBottom: 20, // Reducido
+    padding: 20, // Reducido
     backgroundColor: '#FFF2E8',
-    borderRadius: 12,
+    borderRadius: 10, // Reducido
     borderWidth: 2,
     borderColor: '#FF6B35',
+    borderStyle: 'dashed',
   },
   numeroFacturaLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
-    marginBottom: 6,
+    fontSize: 11, // Reducido
+    color: '#FF6B35',
+    fontWeight: '700',
+    marginBottom: 6, // Reducido
     fontFamily: "System",
-    letterSpacing: 1,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   numeroFactura: {
-    fontSize: 28,
+    fontSize: 28, // Reducido
     fontWeight: '900',
     color: '#FF6B35',
-    marginBottom: 4,
+    marginBottom: 5,
     fontFamily: "System",
   },
   idPedido: {
-    fontSize: 14,
+    fontSize: 13, // Reducido
     color: '#9CA3AF',
     fontFamily: "System",
   },
   
-  // 3. DETALLES Y ESTADO
+  // 3. INFORMACIÓN DEL CLIENTE (en la app)
+  infoClienteContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoFila: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+    flex: 1,
+  },
+  infoValor: {
+    fontSize: 13,
+    color: '#1F2937',
+    fontWeight: '600',
+    flex: 2,
+    textAlign: 'right',
+  },
+  sinDatosCliente: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 10,
+  },
+  
+  // 4. DETALLES Y ESTADO
   detallesGrid: {
     flexDirection: 'row',
     marginBottom: 20,
@@ -911,204 +1439,205 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   seccionTitulo: {
-    fontSize: 12,
+    fontSize: 11, // Reducido
     fontWeight: '700',
     color: '#6B7280',
-    marginBottom: 12,
+    marginBottom: 10, // Reducido
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2, // Reducido
     fontFamily: "System",
   },
   detalleFila: {
-    marginBottom: 12,
+    marginBottom: 10, // Reducido
   },
   detalleLabel: {
-    fontSize: 11,
+    fontSize: 10, // Reducido
     color: '#9CA3AF',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.8, // Reducido
+    marginBottom: 3,
     fontFamily: "System",
   },
   detalleValor: {
-    fontSize: 15,
+    fontSize: 14, // Reducido
     color: '#1F2937',
     fontWeight: '600',
     fontFamily: "System",
   },
   estadoLabel: {
-    fontSize: 11,
+    fontSize: 10, // Reducido
     color: '#9CA3AF',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    letterSpacing: 0.8, // Reducido
+    marginBottom: 6, // Reducido
     textAlign: 'right',
     fontFamily: "System",
   },
   estadoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 14, // Reducido
+    paddingVertical: 7, // Reducido
     borderRadius: 20,
-    minWidth: 100,
+    minWidth: 90, // Reducido
     justifyContent: 'center',
+    borderWidth: 2,
   },
   estadoDot: {
-    width: 8,
-    height: 8,
+    width: 7, // Reducido
+    height: 7, // Reducido
     borderRadius: 4,
-    marginRight: 6,
+    marginRight: 6, // Reducido
   },
   estadoTexto: {
-    fontSize: 14,
+    fontSize: 13, // Reducido
     fontWeight: '700',
     fontFamily: "System",
   },
   
-  // 4. TABLA DE PRODUCTOS
+  // 5. TABLA DE PRODUCTOS
   tablaProductos: {
     marginBottom: 20,
   },
   tablaHeader: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 12, // Reducido
     borderBottomWidth: 2,
     borderBottomColor: '#FF6B35',
-    marginBottom: 8,
+    marginBottom: 6, // Reducido
     backgroundColor: '#FFF2E8',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderRadius: 8, // Reducido
+    paddingHorizontal: 10, // Reducido
   },
   tablaHeaderText: {
-    fontSize: 11,
+    fontSize: 10, // Reducido
     fontWeight: '700',
     color: '#1F2937',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8, // Reducido
     fontFamily: "System",
   },
   tablaFila: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 10, // Reducido
     borderBottomWidth: 1,
     borderBottomColor: '#FFD3BE',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10, // Reducido
   },
   tablaTexto: {
-    fontSize: 14,
+    fontSize: 13, // Reducido
     color: '#1F2937',
     fontFamily: "System",
   },
   tablaSubtotal: {
-    fontSize: 14,
+    fontSize: 13, // Reducido
     color: '#FF6B35',
     fontWeight: '700',
     fontFamily: "System",
   },
   
-  // 5. TOTALES
+  // 6. TOTALES
   totalesContainer: {
     marginBottom: 20,
     backgroundColor: '#FFF2E8',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 2,
+    borderRadius: 10, // Reducido
+    padding: 20, // Reducido
+    borderWidth: 2, // Reducido
     borderColor: '#FF6B35',
   },
   totalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 10, // Reducido
   },
   totalLabel: {
-    fontSize: 15,
+    fontSize: 15, // Reducido
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '600',
     fontFamily: "System",
   },
   totalValor: {
-    fontSize: 16,
+    fontSize: 15, // Reducido
     fontWeight: '600',
     color: '#1F2937',
     fontFamily: "System",
   },
   separadorDelgado: {
-    height: 1,
-    backgroundColor: '#FFD3BE',
-    marginVertical: 12,
+    height: 2,
+    backgroundColor: '#FF8E53',
+    marginVertical: 14, // Reducido
   },
   totalFinalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6, // Reducido
   },
   totalFinalLabel: {
-    fontSize: 18,
+    fontSize: 18, // Reducido
     fontWeight: '900',
     color: '#1F2937',
     textTransform: 'uppercase',
     fontFamily: "System",
   },
   totalFinalValor: {
-    fontSize: 28,
+    fontSize: 28, // Reducido
     fontWeight: '900',
     color: '#FF6B35',
     fontFamily: "System",
   },
   
-  // 6. BOTONES
+  // 7. BOTONES
   botonesContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    gap: 10, // Reducido
+    marginBottom: 20, // Reducido
   },
   botonAccion: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 14, // Reducido
+    borderRadius: 10, // Reducido
+    gap: 6, // Reducido
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 2 }, // Reducido
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 4, // Reducido
+    elevation: 3, // Reducido
   },
   downloadButton: {
     backgroundColor: '#FF6B35',
   },
   shareButton: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 2,
+    borderWidth: 1.5, // Reducido
     borderColor: '#FF6B35',
   },
   pedidoButton: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 2,
+    borderWidth: 1.5, // Reducido
     borderColor: '#E5E7EB',
   },
   
   // Textos de botones específicos
   downloadButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13, // Reducido
     fontWeight: '700',
     fontFamily: "System",
   },
   shareButtonText: {
     color: '#FF6B35',
-    fontSize: 14,
+    fontSize: 13, // Reducido
     fontWeight: '700',
     fontFamily: "System",
   },
   pedidoButtonText: {
     color: '#1F2937',
-    fontSize: 14,
+    fontSize: 13, // Reducido
     fontWeight: '700',
     fontFamily: "System",
   },
@@ -1116,36 +1645,39 @@ const styles = StyleSheet.create({
   // Footer informativo
   footerContainer: {
     alignItems: 'center',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    paddingTop: 18, // Reducido
+    borderTopWidth: 1.5, // Reducido
+    borderTopColor: '#FFD3BE',
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 12, // Reducido
     color: '#6B7280',
     fontFamily: "System",
   },
   footerEmpresa: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 16, // Reducido
+    fontWeight: '800',
     color: '#FF6B35',
-    marginTop: 4,
+    marginTop: 5,
+    marginBottom: 6, // Reducido
     fontFamily: "System",
+    textTransform: 'uppercase',
+    letterSpacing: 0.8, // Reducido
   },
   footerNota: {
-    fontSize: 11,
+    fontSize: 10, // Reducido
     color: '#9CA3AF',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 3,
     fontStyle: 'italic',
     fontFamily: "System",
   },
   
   // UTILIDADES
   separador: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 20,
+    height: 1.5, // Reducido
+    backgroundColor: '#FFD3BE',
+    marginVertical: 20, // Reducido
   },
   bottomSpacing: {
     height: 20,
