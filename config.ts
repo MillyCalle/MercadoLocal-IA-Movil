@@ -8,7 +8,7 @@ const NETWORK_CONFIGS = {
   // Red de tu casa
   CASA: {
     name: "Red Casa",
-    ip: "192.168.1.13",
+    ip: "192.168.1.35",
     port: "8080"
   },
   
@@ -28,7 +28,7 @@ const NETWORK_CONFIGS = {
 };
 
 // 🔥 SELECCIONA LA RED ACTUAL AQUÍ (solo cambia esta línea)
-const CURRENT_NETWORK: keyof typeof NETWORK_CONFIGS = "INSTITUTO"; // 👈 "CASA", "INSTITUTO", "PRODUCCION"
+const CURRENT_NETWORK: keyof typeof NETWORK_CONFIGS = "CASA"; // 👈 "CASA", "INSTITUTO", "PRODUCCION"
 
 // Construye la URL base
 const getApiBaseUrl = (): string => {
