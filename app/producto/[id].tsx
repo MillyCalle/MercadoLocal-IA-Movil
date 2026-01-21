@@ -44,6 +44,7 @@ interface Producto {
   }>;
 }
 
+// 
 const PremiumCard = ({ children, style }: {
   children: React.ReactNode;
   style?: any;
@@ -66,7 +67,7 @@ export default function ProductoDetalle() {
   const [cantidad, setCantidad] = useState(1);
   const [menuVendedor, setMenuVendedor] = useState(false);
   const [guardandoFavorito, setGuardandoFavorito] = useState(false);
-
+  
   // Modales
   const [showEnvio, setShowEnvio] = useState(false);
   const [showReembolso, setShowReembolso] = useState(false);
@@ -110,8 +111,6 @@ export default function ProductoDetalle() {
       if (!response.ok) throw new Error("Error al cargar producto");
       const data: Producto = await response.json();
       setProducto(data);
-      console.log("Producto cargado:", data);
-      console.log("idVendedor:", data.idVendedor);
     } catch (error) {
       console.error("Error:", error);
       Alert.alert("Error", "No se pudo cargar el producto");
@@ -122,122 +121,122 @@ export default function ProductoDetalle() {
   };
 
   const guardarYIrAFavoritos = async () => {
-    try {
-      setGuardandoFavorito(true);
-
-      if (!producto) {
-        Alert.alert("Error", "No hay información del producto");
-        setGuardandoFavorito(false);
-        return;
-      }
-
-      // 1. VERIFICAR AUTENTICACIÓN
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para guardar en favoritos",
-          [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
-          ]
-        );
-        setGuardandoFavorito(false);
-        return;
-      }
-
-      // 2. PARSEAR USUARIO CORRECTAMENTE
-      let user;
-      try {
-        user = JSON.parse(userStr);
-      } catch (parseError) {
-        console.error("Error parseando usuario:", parseError);
-        Alert.alert("Error", "Error en los datos del usuario");
-        setGuardandoFavorito(false);
-        return;
-      }
-
-      // 3. VERIFICAR DATOS DEL USUARIO
-      if (!user || !user.idUsuario) {
-        Alert.alert("Error", "No se pudo obtener la información del usuario");
-        setGuardandoFavorito(false);
-        return;
-      }
-
-      // 4. SOLO AGREGAR SI NO ES FAVORITO
-      if (!esFavorito) {
-        // Agregar al contexto local primero (para feedback inmediato)
-        agregarFavorito(producto.idProducto);
-
-        // Hacer petición al backend
-        try {
-          const response = await fetch(`${API_CONFIG.BASE_URL}/favoritos/agregar`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              idConsumidor: user.idUsuario,
-              idProducto: producto.idProducto,
-            }),
-          });
-
-          if (!response.ok) {
-            // Leer la respuesta UNA SOLA VEZ
-            let errorData;
-            try {
-              const responseText = await response.text();
-              try {
-                errorData = JSON.parse(responseText);
-              } catch {
-                errorData = { message: responseText || "Error del servidor" };
-              }
-            } catch {
-              errorData = { message: "Error al leer respuesta del servidor" };
-            }
-
-            const errorMessage = errorData.message || errorData.error || "Error del servidor";
-
-            // Si el producto ya está en favoritos en el backend, no es un error crítico
-            if (typeof errorMessage === 'string' &&
-              (errorMessage.includes("ya existe") ||
-                errorMessage.includes("already") ||
-                errorMessage.includes("duplicate"))) {
-              console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
-              // Solo log, NO mostramos alerta
-            } else {
-              console.warn("Error del servidor al agregar favorito:", errorMessage);
-
-            }
-          } else {
-            // Respuesta exitosa
-            const responseData = await response.json();
-            console.log("Favorito agregado en el servidor:", responseData);
-          }
-        } catch (fetchError: any) {
-          console.error("Error en la petición al servidor:", fetchError.message || fetchError);
-
-        }
-
-        Alert.alert("¡Guardado!", "Producto agregado a favoritos");
-      } else {
-        // Si ya es favorito, solo navegamos
-        Alert.alert("Información", "Este producto ya está en tus favoritos");
-      }
-
-      // 5. NAVEGAR A FAVORITOS
-      router.push("/(tabs)/Favoritos" as any);
-
-    } catch (error) {
-      console.error("Error en guardarYIrAFavoritos:", error);
-      Alert.alert("Error", "No se pudo completar la acción");
-    } finally {
+  try {
+    setGuardandoFavorito(true);
+    
+    if (!producto) {
+      Alert.alert("Error", "No hay información del producto");
       setGuardandoFavorito(false);
+      return;
     }
-  };
+    
+    // 1. VERIFICAR AUTENTICACIÓN
+    const userStr = await AsyncStorage.getItem("user");
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!userStr || !token) {
+      Alert.alert(
+        "Inicia sesión",
+        "Debes iniciar sesión para guardar en favoritos",
+        [
+          { text: "Cancelar" },
+          { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+        ]
+      );
+      setGuardandoFavorito(false);
+      return;
+    }
+
+    // 2. PARSEAR USUARIO CORRECTAMENTE
+    let user;
+    try {
+      user = JSON.parse(userStr);
+    } catch (parseError) {
+      console.error("Error parseando usuario:", parseError);
+      Alert.alert("Error", "Error en los datos del usuario");
+      setGuardandoFavorito(false);
+      return;
+    }
+    
+    // 3. VERIFICAR DATOS DEL USUARIO
+    if (!user || !user.idUsuario) {
+      Alert.alert("Error", "No se pudo obtener la información del usuario");
+      setGuardandoFavorito(false);
+      return;
+    }
+
+    // 4. SOLO AGREGAR SI NO ES FAVORITO
+    if (!esFavorito) {
+      // Agregar al contexto local primero (para feedback inmediato)
+      agregarFavorito(producto.idProducto);
+      
+      // Hacer petición al backend
+      try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/favoritos/agregar`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            idConsumidor: user.idUsuario,
+            idProducto: producto.idProducto,
+          }),
+        });
+
+        if (!response.ok) {
+          // Leer la respuesta UNA SOLA VEZ
+          let errorData;
+          try {
+            const responseText = await response.text();
+            try {
+              errorData = JSON.parse(responseText);
+            } catch {
+              errorData = { message: responseText || "Error del servidor" };
+            }
+          } catch {
+            errorData = { message: "Error al leer respuesta del servidor" };
+          }
+          
+          const errorMessage = errorData.message || errorData.error || "Error del servidor";
+          
+          // Si el producto ya está en favoritos en el backend, no es un error crítico
+          if (typeof errorMessage === 'string' && 
+              (errorMessage.includes("ya existe") || 
+               errorMessage.includes("already") ||
+               errorMessage.includes("duplicate"))) {
+            console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
+            // Solo log, NO mostramos alerta
+          } else {
+            console.warn("Error del servidor al agregar favorito:", errorMessage);
+            
+          }
+        } else {
+          // Respuesta exitosa
+          const responseData = await response.json();
+          console.log("Favorito agregado en el servidor:", responseData);
+        }
+      } catch (fetchError: any) {
+        console.error("Error en la petición al servidor:", fetchError.message || fetchError);
+       
+      }
+      
+      Alert.alert("¡Guardado!", "Producto agregado a favoritos");
+    } else {
+      // Si ya es favorito, solo navegamos
+      Alert.alert("Información", "Este producto ya está en tus favoritos");
+    }
+    
+    // 5. NAVEGAR A FAVORITOS
+    router.push("/(tabs)/Favoritos" as any);
+    
+  } catch (error) {
+    console.error("Error en guardarYIrAFavoritos:", error);
+    Alert.alert("Error", "No se pudo completar la acción");
+  } finally {
+    setGuardandoFavorito(false);
+  }
+};
 
   const agregarAlCarrito = async () => {
     try {
@@ -257,9 +256,9 @@ export default function ProductoDetalle() {
       }
 
       await agregarAlCarritoContext(producto!.idProducto, cantidad);
-
+      
       Alert.alert("¡Agregado!", `${producto?.nombreProducto} agregado al carrito 🛒`);
-
+      
     } catch (error: any) {
       console.error("❌ Error en agregarAlCarrito:", error);
       Alert.alert("Error al agregar", error.message || "No se pudo agregar al carrito");
@@ -268,6 +267,7 @@ export default function ProductoDetalle() {
 
   const comprarAhora = async () => {
     try {
+      // 1. Verificar autenticación
       const userStr = await AsyncStorage.getItem("user");
       const token = await AsyncStorage.getItem("authToken");
 
@@ -276,8 +276,11 @@ export default function ProductoDetalle() {
           "Inicia sesión",
           "Debes iniciar sesión para comprar",
           [
-            { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+            { text: "Cancelar", style: "cancel" },
+            { 
+              text: "Iniciar sesión", 
+              onPress: () => router.push("/(tabs)/profile" as any) 
+            },
           ]
         );
         return;
@@ -286,17 +289,25 @@ export default function ProductoDetalle() {
       const user = JSON.parse(userStr);
       const idConsumidor = user.idConsumidor || user.idUsuario;
 
+      if (!producto?.idProducto || !producto?.idVendedor) {
+        Alert.alert("Error", "Información del producto incompleta");
+        return;
+      }
+
+      // 2. Preparar datos para la compra
       const body = {
         idConsumidor: idConsumidor,
-        idVendedor: producto?.idVendedor,
+        idVendedor: producto.idVendedor,
         metodoPago: "TARJETA",
         detalles: [
           {
-            idProducto: producto?.idProducto,
+            idProducto: producto.idProducto,
             cantidad: cantidad,
           },
         ],
       };
+
+      console.log("Enviando compra...", JSON.stringify(body, null, 2));
 
       const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
         method: "POST",
@@ -307,12 +318,13 @@ export default function ProductoDetalle() {
         body: JSON.stringify(body),
       });
 
-      // Leer la respuesta UNA SOLA VEZ
+      // 3. Manejar respuesta del servidor
       let responseData;
       let responseText = "";
-
+      
       try {
         responseText = await response.text();
+        console.log("Respuesta del servidor (texto):", responseText);
       } catch (readError) {
         console.error("Error leyendo respuesta:", readError);
         responseText = "";
@@ -326,23 +338,51 @@ export default function ProductoDetalle() {
         } catch (e) {
           errorMessage = responseText || errorMessage;
         }
+        
+        // Manejo específico de errores comunes
+        if (response.status === 401 || response.status === 403) {
+          errorMessage = "Sesión expirada, inicia sesión nuevamente";
+          await AsyncStorage.removeItem("authToken");
+          await AsyncStorage.removeItem("user");
+          router.replace("/(tabs)/profile" as any);
+        } else if (responseText.includes("stock") || responseText.includes("Stock")) {
+          errorMessage = "Producto sin stock disponible";
+        }
+        
         Alert.alert("Error", errorMessage);
         return;
       }
 
       try {
         responseData = JSON.parse(responseText);
+        console.log("✅ Compra exitosa, respuesta:", responseData);
       } catch (parseError) {
         console.error("Error parseando respuesta JSON:", parseError);
         Alert.alert("Error", "Respuesta del servidor inválida");
         return;
       }
 
-      router.push(`/consumidor/Pedido/${responseData.idPedido}` as any);
+      // 4. NAVEGACIÓN CORREGIDA - IMPORTANTE
+      // Opción 1: Si tienes PedidoDetalle.tsx (recomendado)
+      if (responseData.idPedido) {
+        console.log("🏁 Navegando a PedidoDetalle con ID:", responseData.idPedido);
+        router.push(`/consumidor/PedidoDetalle?id=${responseData.idPedido}` as any);
+        
+        // Opción 2: Si prefieres navegar a la pantalla Pedido.tsx
+        // router.push(`/consumidor/Pedido?id=${responseData.idPedido}` as any);
+        
+        // Opción 3: Si usas la misma ruta que la web
+        // router.push(`/pedido/${responseData.idPedido}` as any);
+      } else {
+        Alert.alert("Error", "No se recibió ID del pedido del servidor");
+      }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error al comprar:", error);
-      Alert.alert("Error", "No se pudo procesar la compra. Verifica tu conexión.");
+      Alert.alert("Error", 
+        "No se pudo procesar la compra. Verifica tu conexión.\n" + 
+        (error.message || "")
+      );
     }
   };
 
@@ -383,7 +423,7 @@ export default function ProductoDetalle() {
       // Leer la respuesta UNA SOLA VEZ
       let responseData;
       let responseText = "";
-
+      
       try {
         responseText = await response.text();
       } catch (readError) {
@@ -462,7 +502,7 @@ export default function ProductoDetalle() {
             style={styles.mainImage}
             resizeMode="cover"
           />
-
+          
           {producto.stockProducto > 0 && producto.stockProducto <= 10 && (
             <View style={styles.stockBadge}>
               <Text style={styles.stockBadgeText}>
@@ -709,7 +749,7 @@ export default function ProductoDetalle() {
         <View style={styles.modalOverlay}>
           <PremiumCard style={styles.modalContent}>
             <Text style={styles.modalTitle}>✍️ Escribe tu reseña</Text>
-
+            
             <Text style={styles.inputLabel}>Calificación</Text>
             <View style={styles.ratingSelector}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -755,7 +795,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* MODAL DEL MENÚ DEL VENDEDOR - CORREGIDO */}
       <Modal visible={menuVendedor} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -767,12 +806,7 @@ export default function ProductoDetalle() {
               style={styles.menuItem}
               onPress={() => {
                 setMenuVendedor(false);
-                // Navegar al perfil del vendedor
-                if (producto && producto.idVendedor) {
-                  router.push(`/vendedor/VendedorPerfil?id=${producto.idVendedor}` as any);
-                } else {
-                  Alert.alert("Error", "No se encontró información del vendedor");
-                }
+                Alert.alert("Perfil del Vendedor", "Función próximamente disponible");
               }}
             >
               <Text style={styles.menuItemText}>👤 Ver Perfil del Vendedor</Text>
@@ -1309,10 +1343,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1e293b",
     fontFamily: "System",
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 16,
   },
 });
