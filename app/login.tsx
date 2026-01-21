@@ -487,8 +487,18 @@ export default function LoginScreen() {
 
       console.log("💾 Datos guardados");
 
-      // Redirigir a tabs
-      router.replace("/(tabs)");
+      // ✅ REDIRECCIÓN SEGÚN ROL
+      console.log(`🎯 Rol detectado: ${data.rol}`);
+      
+      if (data.rol === "VENDEDOR") {
+        console.log("🔧 Redirigiendo a dashboard del vendedor...");
+        // Redirigir al dashboard del vendedor
+        router.replace("/vendedor/dashboard");
+      } else {
+        console.log("🛒 Redirigiendo a tabs para consumidor...");
+        // Para consumidores o cualquier otro rol (CONSUMIDOR, CLIENTE, etc.)
+        router.replace("/(tabs)");
+      }
 
     } catch (error: any) {
       console.error("❌ Error:", error);

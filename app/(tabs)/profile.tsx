@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native"; // Importamos el hook correcto
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react"; // Añade useCallback aquí
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -59,17 +59,28 @@ export default function Profile() {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    cargarPerfil();
-    startAnimations();
+    // 🔴 VERIFICAR SI ES VENDEDOR Y REDIRIGIR
+    const verificarRol = async () => {
+      const rol = await AsyncStorage.getItem("rol");
+      if (rol === "VENDEDOR") {
+        console.log("🚫 Vendedor intentando acceder a perfil de consumidor, redirigiendo...");
+        router.replace("/vendedor/dashboard");
+        return;
+      }
+      // Si es consumidor, cargar perfil
+      cargarPerfil();
+      startAnimations();
+    };
+    
+    verificarRol();
   }, []);
 
   // SOLUCIÓN: Usar useFocusEffect para escuchar cuando la pantalla recibe foco
   useFocusEffect(
-    useCallback(() => { // Cambiado de React.useCallback a useCallback
-      console.log("🔄 Pantalla de perfil recibió foco, recargando datos...");
+    useCallback(() => {
+      console.log("🔄 Pantalla de perfil recibió foco");
       recargarPerfil();
       
-      // Retorno opcional para limpieza
       return () => {
         console.log("🧹 Limpiando foco de perfil");
       };
@@ -408,37 +419,27 @@ export default function Profile() {
               </ActionButton>
             </>
           )}
-
+          
+          {/* 🚨 IMPORTANTE: VENDEDORES NO DEBERÍAN LLEGAR AQUÍ, PERO POR SI ACASO */}
           {perfil.rol === "VENDEDOR" && (
-            <>
-              <ActionButton
-                onPress={() => router.push("/editar-empresa" as any)}
-                icon="✏️"
+            <View style={{ padding: 20, alignItems: 'center', width: '100%' }}>
+              <Text style={{ color: '#FF6B35', fontWeight: 'bold', fontSize: 16 }}>
+                ⚠️ Vendedor detectado en perfil de consumidor
+              </Text>
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: '#FF6B35', 
+                  padding: 10, 
+                  borderRadius: 8, 
+                  marginTop: 10 
+                }}
+                onPress={() => router.replace("/vendedor/dashboard")}
               >
-                Editar empresa
-              </ActionButton>
-              <ActionButton
-                onPress={() => router.push("/vendedor/pedidos" as any)}
-                variant="secondary"
-                icon="📊"
-              >
-                Pedidos
-              </ActionButton>
-              <ActionButton
-                onPress={() => router.push("/vendedor/resenas" as any)}
-                variant="secondary"
-                icon="⭐"
-              >
-                Reseñas
-              </ActionButton>
-              <ActionButton
-                onPress={() => router.push("/vendedor/productos" as any)}
-                variant="secondary"
-                icon="📦"
-              >
-                Productos
-              </ActionButton>
-            </>
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                  Ir al dashboard de vendedor
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {perfil.rol === "ADMIN" && (
@@ -604,6 +605,7 @@ export default function Profile() {
     </ScrollView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

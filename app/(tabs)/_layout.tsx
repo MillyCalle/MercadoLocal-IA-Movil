@@ -2,11 +2,36 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Tabs } from 'expo-router';
-import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Tabs, useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const rol = await AsyncStorage.getItem("rol");
+        const token = await AsyncStorage.getItem("authToken");
+        
+        console.log("🔍 Verificando rol en tabs consumidor:");
+        console.log("📱 Token:", token ? "Sí" : "No");
+        console.log("👤 Rol:", rol);
+        
+        // SI ES VENDEDOR, REDIRIGIR A SU DASHBOARD
+        if (token && rol === "VENDEDOR") {
+          console.log("🔧 Usuario es vendedor, redirigiendo a dashboard vendedor...");
+          router.replace("/vendedor/dashboard");
+        }
+      } catch (error) {
+        console.error("❌ Error verificando rol:", error);
+      }
+    };
+    
+    checkUserRole();
+  }, []);
 
   return (
     <Tabs
@@ -56,6 +81,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/* 🎯 PERFIL DE CONSUMIDOR - SOLO PARA CONSUMIDORES */}
       <Tabs.Screen
         name="profile"
         options={{
