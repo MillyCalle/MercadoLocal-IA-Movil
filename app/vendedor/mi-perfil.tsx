@@ -3,16 +3,16 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Dimensions,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
@@ -521,7 +521,7 @@ export default function MiPerfil() {
         <View style={styles.actionsGrid}>
           <ActionButton 
             title="Editar perfil" 
-            onPress={() => Alert.alert("Funcionalidad en desarrollo", "Próximamente disponible")} 
+            onPress={() => router.push("/vendedor/EditarPerfilVendedor")} 
             icon="✏️" 
           />
           <ActionButton 

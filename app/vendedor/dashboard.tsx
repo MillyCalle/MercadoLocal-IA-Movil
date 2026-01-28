@@ -1,17 +1,18 @@
+// app/vendedor/dashboard.tsx - CORREGIDO
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    RefreshControl,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
@@ -169,17 +170,27 @@ export default function DashboardVendedor() {
   };
 
   const getClienteNombre = (pedido: any): string => {
+    // Lógica igual que en web
     if (pedido.clienteNombre) return pedido.clienteNombre;
     if (pedido.nombreCliente) return pedido.nombreCliente;
+    
+    if (pedido.consumidor?.usuario) {
+      const nombre = pedido.consumidor.usuario.nombre || '';
+      const apellido = pedido.consumidor.usuario.apellido || '';
+      return `${nombre} ${apellido}`.trim() || "Cliente sin nombre";
+    }
+    
     if (pedido.cliente) {
       if (typeof pedido.cliente === 'string') return pedido.cliente;
       if (pedido.cliente.nombre) {
         return `${pedido.cliente.nombre || ''} ${pedido.cliente.apellido || ''}`.trim();
       }
     }
-    return "Cliente";
+    
+    return "Cliente sin nombre";
   };
 
+  // 🔥 FUNCIÓN CORREGIDA - Igual que en web
   const cargarPedidosRecientes = async (token: string, vendedorId: string) => {
     try {
       const response = await fetch(
@@ -193,22 +204,27 @@ export default function DashboardVendedor() {
       );
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("📦 Pedidos recientes cargados:", data);
+        const pedidosData = await response.json();
+        console.log("📦 Pedidos recientes cargados:", pedidosData);
         
-        let pedidosFormateados: Pedido[] = [];
+        // Normalizar datos igual que en web
+        const pedidosFormateados = pedidosData.map((pedido: any, index: number) => ({
+          id: pedido.idPedido || pedido.id || String(index + 1),
+          // 🔥 ARREGLADO: Usa la misma lógica que en web
+          numero: pedido.numeroPedido || 
+                 pedido.numero || 
+                 pedido.idPedido || 
+                 pedido.id || 
+                 `PED-${index + 1}`,
+          cliente: pedido.clienteNombre || 
+                   `${pedido.cliente?.nombre || ''} ${pedido.cliente?.apellido || ''}`.trim() || 
+                   "Cliente sin nombre",
+          estado: pedido.estadoPedido || pedido.estado || "Pendiente",
+          total: pedido.totalPedido || pedido.total || pedido.montoTotal || 0,
+          fecha: pedido.fechaPedido || pedido.fecha || new Date().toISOString()
+        }));
         
-        if (Array.isArray(data)) {
-          pedidosFormateados = data.map((pedido: any) => ({
-            id: pedido.id || pedido._id || pedido.idPedido || "N/A",
-            numero: pedido.numero || pedido.id || pedido._id || "N/A",
-            cliente: getClienteNombre(pedido),
-            estado: pedido.estado || "PENDIENTE",
-            total: pedido.total || pedido.montoTotal || pedido.precioTotal || 0,
-            fecha: pedido.fecha || pedido.fechaCreacion || pedido.createdAt || new Date().toISOString(),
-          }));
-        }
-        
+        console.log("✅ Pedidos formateados:", pedidosFormateados);
         setPedidosRecientes(pedidosFormateados.slice(0, 3));
       } else {
         console.log("⚠️ No se pudieron cargar pedidos recientes");
@@ -229,7 +245,7 @@ export default function DashboardVendedor() {
     router.push(`./${route}`);
   };
 
-  // Componente de Tarjeta de Estadística - Estilo actualizado
+  // Componente de Tarjeta de Estadística
   const StatCard = ({ title, value, icon, color, onPress }: any) => (
     <TouchableOpacity
       style={[styles.statCard, { borderLeftColor: color }]}
@@ -274,7 +290,6 @@ export default function DashboardVendedor() {
       >
         {/* Header con efectos visuales */}
         <View style={styles.header}>
-          {/* Círculos flotantes de fondo */}
           <FloatingCircles />
           
           <View style={styles.headerTop}>
@@ -286,7 +301,6 @@ export default function DashboardVendedor() {
             )}
           </View>
           
-          {/* Título con efecto especial */}
           <View style={styles.titleContainer}>
             <Text style={styles.headerTitle}>Tablero Vendedor</Text>
             <View style={styles.titleUnderline} />
@@ -317,7 +331,7 @@ export default function DashboardVendedor() {
           </View>
         )}
 
-        {/* Estadísticas - Nuevo diseño */}
+        {/* Estadísticas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Resumen General</Text>
           <Text style={styles.sectionSubtitle}>
@@ -362,7 +376,7 @@ export default function DashboardVendedor() {
           </View>
         </View>
 
-        {/* Acciones Rápidas - Nuevo diseño */}
+        {/* Acciones Rápidas */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
@@ -431,7 +445,7 @@ export default function DashboardVendedor() {
           </ScrollView>
         </View>
 
-        {/* Pedidos Recientes - Nuevo diseño */}
+        {/* Pedidos Recientes */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View>
@@ -467,9 +481,9 @@ export default function DashboardVendedor() {
                       style={[
                         styles.estadoBadge,
                         { 
-                          backgroundColor: pedido.estado === "PENDIENTE" 
+                          backgroundColor: pedido.estado === "PENDIENTE" || pedido.estado === "Pendiente"
                             ? "#FEF3C7" 
-                            : pedido.estado === "COMPLETADO" 
+                            : pedido.estado === "COMPLETADO" || pedido.estado === "Completado"
                               ? "#D1FAE5" 
                               : "#DBEAFE" 
                         }
@@ -478,9 +492,9 @@ export default function DashboardVendedor() {
                       <Text style={[
                         styles.estadoText,
                         { 
-                          color: pedido.estado === "PENDIENTE" 
+                          color: pedido.estado === "PENDIENTE" || pedido.estado === "Pendiente"
                             ? "#92400E" 
-                            : pedido.estado === "COMPLETADO" 
+                            : pedido.estado === "COMPLETADO" || pedido.estado === "Completado"
                               ? "#065F46" 
                               : "#1E40AF" 
                         }
@@ -587,27 +601,25 @@ export default function DashboardVendedor() {
             </Text>
             <TouchableOpacity 
               style={styles.ctaButton}
-              onPress={() => navigateTo("perfil-vendedor")}
+              onPress={() => navigateTo("ayuda")}
             >
               <Text style={styles.ctaButtonText}>Ir al Soporte →</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Espacio final */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ESTILOS (Los mismos que antes, sin cambios)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
-  
-  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -632,8 +644,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     opacity: 0.6,
   },
-  
-  // Efectos de círculos flotantes
   floatingContainer: {
     position: 'absolute',
     top: 0,
@@ -675,8 +685,6 @@ const styles = StyleSheet.create({
     bottom: 80,
     right: 50,
   },
-  
-  // Header mejorado
   header: {
     backgroundColor: "white",
     paddingTop: 60,
@@ -718,8 +726,6 @@ const styles = StyleSheet.create({
     color: "#D35400",
     fontFamily: "System",
   },
-  
-  // Título con efectos
   titleContainer: {
     alignItems: 'center',
     marginBottom: 8,
@@ -773,8 +779,6 @@ const styles = StyleSheet.create({
     color: "#15803d",
     fontFamily: "System",
   },
-  
-  // Error
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -795,8 +799,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "System",
   },
-  
-  // Secciones
   section: {
     paddingHorizontal: 20,
     marginTop: 30,
@@ -820,8 +822,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: "System",
   },
-  
-  // Estadísticas
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -868,8 +868,6 @@ const styles = StyleSheet.create({
     right: -20,
     opacity: 0.2,
   },
-  
-  // Indicadores
   actionsIndicator: {
     flexDirection: "row",
     gap: 4,
@@ -879,8 +877,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  
-  // Acciones rápidas
   actionsScroll: {
     marginBottom: 10,
   },
@@ -922,8 +918,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  
-  // Botón Ver todos
   seeAllButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -939,8 +933,6 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     marginRight: 6,
   },
-  
-  // Pedidos
   pedidosContainer: {
     gap: 12,
   },
@@ -1014,8 +1006,6 @@ const styles = StyleSheet.create({
     color: "#FF6B35",
     fontFamily: "System",
   },
-  
-  // Estado vacío
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -1055,8 +1045,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "System",
   },
-  
-  // Indicador de estadísticas
   statsIndicator: {
     backgroundColor: "#FF6B35",
     width: 40,
@@ -1069,8 +1057,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "white",
   },
-  
-  // Tarjeta analítica
   analiticaCard: {
     backgroundColor: "white",
     borderRadius: 24,
@@ -1127,8 +1113,6 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#f1f5f9",
   },
-  
-  // CTA (Call to Action)
   ctaSection: {
     paddingHorizontal: 20,
     marginTop: 30,

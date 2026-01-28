@@ -27,7 +27,6 @@ export default function VendedorLayout() {
       if (!token || rol !== "VENDEDOR") {
         console.log("❌ No es vendedor, redirigiendo a login...");
         setIsVendedor(false);
-        // Limpiar datos y redirigir
         await AsyncStorage.clear();
         router.replace("/login");
       } else {
@@ -52,7 +51,6 @@ export default function VendedorLayout() {
   }
 
   if (!isVendedor) {
-    // No renderizar nada mientras redirige
     return null;
   }
 
@@ -109,7 +107,7 @@ export default function VendedorLayout() {
         }}
       />
       
-      {/* 4. PERFIL - CORREGIDO: Ahora usa mi-perfil.tsx directamente */}
+      {/* 4. PERFIL */}
       <Tabs.Screen
         name="mi-perfil"
         options={{
@@ -118,8 +116,6 @@ export default function VendedorLayout() {
             <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
-        // ❌ ELIMINA EL LISTENER que redirige al profile de consumidores
-        // Este listener ya no es necesario porque ahora mi-perfil.tsx es el perfil del vendedor
       />
       
       {/* 5. AYUDA */}
@@ -133,7 +129,7 @@ export default function VendedorLayout() {
         }}
       />
 
-      {/* RUTAS SIN TABS (pantallas completas) */}
+      {/* RUTAS QUE NO DEBEN APARECER EN LOS TABS (OCULTAS) */}
       <Tabs.Screen
         name="agregar-producto"
         options={{
@@ -147,18 +143,64 @@ export default function VendedorLayout() {
         }}
       />
       
+      {/* IMPORTANTE: AÑADE ESTAS LÍNEAS PARA OCULTAR EditarPerfil */}
+      <Tabs.Screen
+        name="EditarPerfil"
+        options={{
+          href: null, // Esto oculta "EditarPerfil" del navbar
+        }}
+      />
+      
+      {/* También oculta cualquier variación que pueda existir */}
+      <Tabs.Screen
+        name="EditarPerfilVendedor"
+        options={{
+          href: null, // Esto oculta "EditarPerfilVendedor" si existe
+        }}
+      />
+      
+      <Tabs.Screen
+        name="editar-perfil"
+        options={{
+          href: null, // Esto oculta "editar-perfil" si existe
+        }}
+      />
+      
       {/* ARCHIVOS DUPLICADOS QUE DEBEN ESTAR OCULTOS */}
       <Tabs.Screen
         name="VendedorPerfil"
         options={{
-          href: null, // Esto oculta "VendedorP..." del navbar
+          href: null,
         }}
       />
       
       <Tabs.Screen
         name="profile"
         options={{
-          href: null, // Esto oculta cualquier otro profile duplicado
+          href: null,
+        }}
+      />
+      
+      {/* ⭐ OCULTAR LA CARPETA PEDIDO COMPLETA (DETALLE DE PEDIDOS) ⭐ */}
+      <Tabs.Screen
+        name="pedido"
+        options={{
+          href: null, // Esto oculta toda la carpeta pedido del navbar
+        }}
+      />
+      
+      {/* OCULTAR ARCHIVO DE DETALLE DE PEDIDO SI EXISTE FUERA DE LA CARPETA */}
+      <Tabs.Screen
+        name="VendedorPedidoDetalle"
+        options={{
+          href: null,
+        }}
+      />
+      
+      <Tabs.Screen
+        name="VendedorPerfilPublic"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

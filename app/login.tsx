@@ -470,33 +470,59 @@ export default function LoginScreen() {
       const data: LoginResponse = await response.json();
       console.log("✅ Login exitoso:", data);
 
-      // Guardar todos los datos de autenticación
+      // 🔴 CORRECCIÓN: MANTENER EL ROL EXACTAMENTE COMO VIENE DEL BACKEND
+      console.log(`🎯 Rol recibido del backend: ${data.rol}`);
+
+      // Guardar datos EXACTAMENTE como vienen del backend
+      const userData = {
+        token: data.token,
+        rol: data.rol, // <-- GUARDAR EL ROL ORIGINAL
+        idUsuario: data.idUsuario,
+        nombre: data.nombre || "",
+        correo: data.correo || email,
+        idVendedor: data.idVendedor || null,
+        idConsumidor: data.idConsumidor || null,
+      };
+
+      // 🔴 CORRECCIÓN: GUARDAR EN ASYNCSTORAGE SIN MODIFICAR EL ROL
       await AsyncStorage.setItem("authToken", data.token);
       await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("user", JSON.stringify(data));
-      await AsyncStorage.setItem("rol", data.rol);
+      await AsyncStorage.setItem("user", JSON.stringify(userData));
+      await AsyncStorage.setItem("rol", data.rol); // <-- GUARDAR ORIGINAL
       await AsyncStorage.setItem("idUsuario", data.idUsuario.toString());
+      await AsyncStorage.setItem("isGuest", "false");
+
+      // Limpiar datos de invitado
+      await AsyncStorage.removeItem("isGuest");
 
       if (data.idVendedor) {
         await AsyncStorage.setItem("idVendedor", data.idVendedor.toString());
+        console.log(`🏪 ID Vendedor: ${data.idVendedor}`);
       }
 
       if (data.idConsumidor) {
         await AsyncStorage.setItem("idConsumidor", data.idConsumidor.toString());
+        console.log(`🛒 ID Consumidor: ${data.idConsumidor}`);
       }
 
-      console.log("💾 Datos guardados");
+      console.log("💾 Datos guardados en AsyncStorage:", {
+        rol: data.rol, // <-- MOSTRAR ORIGINAL
+        token: data.token.substring(0, 20) + "...",
+        idUsuario: data.idUsuario
+      });
 
-      // ✅ REDIRECCIÓN SEGÚN ROL
-      console.log(`🎯 Rol detectado: ${data.rol}`);
+      // 🔴 CORRECCIÓN: REDIRIGIR SEGÚN ROL (COMPARAR EN MAYÚSCULAS)
+      console.log(`🎯 Redirigiendo según rol: ${data.rol}`);
       
-      if (data.rol === "VENDEDOR") {
+      // Pequeña pausa para asegurar que los datos se guarden
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Comparar en mayúsculas para evitar problemas de formato
+      if (data.rol.toUpperCase() === "VENDEDOR") {
         console.log("🔧 Redirigiendo a dashboard del vendedor...");
-        // Redirigir al dashboard del vendedor
         router.replace("/vendedor/dashboard");
       } else {
         console.log("🛒 Redirigiendo a tabs para consumidor...");
-        // Para consumidores o cualquier otro rol (CONSUMIDOR, CLIENTE, etc.)
         router.replace("/(tabs)");
       }
 
@@ -522,16 +548,25 @@ export default function LoginScreen() {
   const handleGuestLogin = async () => {
     setLoading(true);
     try {
+      // Limpiar todos los datos de sesión previa
+      await AsyncStorage.multiRemove([
+        "authToken",
+        "token", 
+        "user",
+        "rol",
+        "idUsuario",
+        "idVendedor",
+        "idConsumidor"
+      ]);
+      
+      // Establecer como invitado
       await AsyncStorage.setItem("isGuest", "true");
-      await AsyncStorage.removeItem("authToken");
-      await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("user");
-      await AsyncStorage.removeItem("rol");
-      await AsyncStorage.removeItem("idUsuario");
-      await AsyncStorage.removeItem("idVendedor");
-      await AsyncStorage.removeItem("idConsumidor");
       
       console.log("👤 Usuario invitado registrado");
+      
+      // Pequeña pausa antes de redirigir
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       router.replace("/(tabs)/explorar");
     } catch (error) {
       console.error("Error en login invitado:", error);

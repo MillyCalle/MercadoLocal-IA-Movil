@@ -8,7 +8,7 @@ const NETWORK_CONFIGS = {
   // Red de tu casa
   CASA: {
     name: "Red Casa",
-    ip: "192.168.1.35",
+    ip: "192.168.1.13",
     port: "8080"
   },
   
