@@ -1,3 +1,4 @@
+// app/(tabs)/_layout.tsx
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -81,12 +82,20 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 🎯 PERFIL DE CONSUMIDOR - SOLO PARA CONSUMIDORES */}
+      {/* 🎯 PERFIL DE CONSUMIDOR */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+        }}
+      />
+
+      {/* 🆕 VendedorPerfil - OCULTAR DEL NAVBAR (es una pantalla modal/detalle) */}
+      <Tabs.Screen
+        name="VendedorPerfil"
+        options={{
+          href: null, // Esto oculta del navbar
         }}
       />
     </Tabs>

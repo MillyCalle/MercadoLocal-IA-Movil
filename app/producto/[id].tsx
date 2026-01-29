@@ -795,6 +795,7 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
+     {/* MODAL DEL MENÚ DEL VENDEDOR - CORREGIDO */}
       <Modal visible={menuVendedor} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -806,7 +807,12 @@ export default function ProductoDetalle() {
               style={styles.menuItem}
               onPress={() => {
                 setMenuVendedor(false);
-                Alert.alert("Perfil del Vendedor", "Función próximamente disponible");
+                // Navegar al perfil del vendedor
+                if (producto && producto.idVendedor) {
+                  router.push(`/(tabs)/VendedorPerfil?id=${producto.idVendedor}` as any);
+                } else {
+                  Alert.alert("Error", "No se encontró información del vendedor");
+                }
               }}
             >
               <Text style={styles.menuItemText}>👤 Ver Perfil del Vendedor</Text>

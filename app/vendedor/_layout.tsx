@@ -166,14 +166,6 @@ export default function VendedorLayout() {
         }}
       />
       
-      {/* ARCHIVOS DUPLICADOS QUE DEBEN ESTAR OCULTOS */}
-      <Tabs.Screen
-        name="VendedorPerfil"
-        options={{
-          href: null,
-        }}
-      />
-      
       <Tabs.Screen
         name="profile"
         options={{
