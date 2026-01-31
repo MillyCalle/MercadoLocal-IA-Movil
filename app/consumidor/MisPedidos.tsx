@@ -38,6 +38,12 @@ interface Pedido {
   pagado?: boolean;
 }
 
+interface ResponseData {
+  pedidosIndividuales?: Pedido[];
+  comprasUnificadas?: any[];
+  [key: string]: any;
+}
+
 // Componente para los círculos flotantes del fondo
 const FloatingCircles = () => {
   return (
@@ -193,7 +199,7 @@ const MisPedidos = () => {
     return userRole === 'ROLE_REPARTIDOR' || userRole === 'ROLE_VENDEDOR';
   };
 
-  // Función para cargar pedidos
+  // Función para cargar pedidos - CORREGIDA
   const fetchPedidos = async () => {
     try {
       setLoading(true);
@@ -222,32 +228,144 @@ const MisPedidos = () => {
       }
 
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      console.log('📦 Pedidos recibidos:', data);
+      const data: ResponseData = await response.json();
+      console.log('📦 Respuesta del backend recibida');
       
-      // Filtrar solo pedidos válidos
-      const pedidosFiltrados = data.filter((p: Pedido) =>
-        p.total > 0 &&
-        ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO", "ENVIADO", "ENTREGADO"].includes(p.estadoPedido)
-      );
+      // DEBUG: Ver estructura completa
+      console.log('🔍 Estructura de datos:', {
+        tipo: typeof data,
+        esArray: Array.isArray(data),
+        keys: Object.keys(data),
+        tienePedidosIndividuales: !!data.pedidosIndividuales,
+        tieneComprasUnificadas: !!data.comprasUnificadas
+      });
+      
+      if (data.pedidosIndividuales) {
+        console.log('📊 pedidosIndividuales:', Array.isArray(data.pedidosIndividuales) ? data.pedidosIndividuales.length : 'no es array');
+      }
+      
+      // CORRECCIÓN PRINCIPAL: Manejar diferentes estructuras de respuesta
+      let pedidosProcesados: Pedido[] = [];
+      
+      // CASO 1: Si es un objeto con pedidosIndividuales
+      if (data.pedidosIndividuales && Array.isArray(data.pedidosIndividuales)) {
+        console.log('✅ Usando pedidosIndividuales del backend:', data.pedidosIndividuales.length);
+        pedidosProcesados = data.pedidosIndividuales;
+      }
+      // CASO 2: Si es un array directamente (compatibilidad hacia atrás)
+      else if (Array.isArray(data)) {
+        console.log('⚠️ Respuesta es array directo (viejo formato):', data.length);
+        pedidosProcesados = data;
+      }
+      // CASO 3: Si la respuesta es null/undefined
+      else if (!data) {
+        console.log('⚠️ Respuesta vacía o null');
+        pedidosProcesados = [];
+      }
+      // CASO 4: Si es un objeto sin pedidosIndividuales
+      else if (data && typeof data === 'object') {
+        // Intentar encontrar cualquier array dentro del objeto
+        const objectKeys = Object.keys(data);
+        let foundArray: Pedido[] | null = null;
+        
+        for (const key of objectKeys) {
+          const value = data[key];
+          if (Array.isArray(value) && value.length > 0 && value[0].idPedido) {
+            foundArray = value;
+            console.log(`✅ Encontrado array en propiedad "${key}" con ${value.length} elementos`);
+            break;
+          }
+        }
+        
+        if (foundArray) {
+          pedidosProcesados = foundArray;
+        } else {
+          console.log('❌ No se encontró ningún array válido en la respuesta');
+          // Intentar convertir el objeto a array si tiene propiedades de pedido
+          if (data.idPedido) {
+            pedidosProcesados = [data as Pedido];
+          }
+        }
+      }
+      
+      console.log('🔄 Total de pedidos a procesar:', pedidosProcesados.length);
+      
+      // Validar que pedidosProcesados sea un array
+      if (!Array.isArray(pedidosProcesados)) {
+        console.error('❌ pedidosProcesados no es un array:', typeof pedidosProcesados);
+        pedidosProcesados = [];
+      }
+      
+      // Ahora sí podemos filtrar (asegurándonos de que sea un array)
+      const pedidosFiltrados = pedidosProcesados.filter((p: Pedido) => {
+        if (!p) return false;
+        
+        // Verificar campos mínimos
+        const tieneId = !!p.idPedido || !!p.id;
+        const tieneTotal = typeof p.total === 'number';
+        const tieneEstado = !!p.estadoPedido;
+        
+        if (!tieneId || !tieneTotal || !tieneEstado) {
+          console.log('❌ Pedido inválido - falta información:', {
+            idPedido: p.idPedido,
+            id: p.id,
+            total: p.total,
+            estadoPedido: p.estadoPedido,
+            tieneId,
+            tieneTotal,
+            tieneEstado
+          });
+          return false;
+        }
+        
+        // Filtrar por estado y total
+        const estadosPermitidos = ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO", "ENVIADO", "ENTREGADO", "CANCELADO"];
+        const estadoValido = estadosPermitidos.includes(p.estadoPedido);
+        const totalValido = p.total > 0;
+        
+        return estadoValido && totalValido;
+      });
+      
+      console.log('✅ Pedidos después de filtrar:', pedidosFiltrados.length);
       
       // Ordenar por fecha (más reciente primero)
-      pedidosFiltrados.sort((a: Pedido, b: Pedido) => 
-        new Date(b.fechaPedido).getTime() - new Date(a.fechaPedido).getTime()
-      );
+      pedidosFiltrados.sort((a: Pedido, b: Pedido) => {
+        try {
+          const fechaA = a.fechaPedido ? new Date(a.fechaPedido).getTime() : 0;
+          const fechaB = b.fechaPedido ? new Date(b.fechaPedido).getTime() : 0;
+          return fechaB - fechaA; // Más reciente primero
+        } catch (error) {
+          console.error('Error ordenando fechas:', error);
+          return 0;
+        }
+      });
       
       setPedidos(pedidosFiltrados);
+      
     } catch (err: any) {
       console.error("❌ Error cargando pedidos:", err);
-      Alert.alert(
-        "Error", 
-        err.message.includes('Network request failed') 
-          ? "Error de conexión. Verifica tu internet." 
-          : "No se pudieron cargar los pedidos. Intenta nuevamente."
-      );
+      
+      // Mostrar error más detallado
+      let mensajeError = "No se pudieron cargar los pedidos. Intenta nuevamente.";
+      
+      if (err.message.includes('Network request failed')) {
+        mensajeError = "Error de conexión. Verifica tu internet.";
+      } else if (err.message.includes('JSON')) {
+        mensajeError = "Error en la respuesta del servidor. Formato inválido.";
+      } else if (err.message.includes('401')) {
+        mensajeError = "Sesión expirada. Por favor inicia sesión nuevamente.";
+        router.push('/login');
+      }
+      
+      Alert.alert("Error", mensajeError);
+      
+      // En caso de error, mostrar array vacío
+      setPedidos([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -435,7 +553,7 @@ const MisPedidos = () => {
           const estadoLabel = getEstadoLabel(pedido.estadoPedido);
           
           return (
-            <View key={pedido.idPedido} style={styles.pedidoCard}>
+            <View key={pedido.idPedido || pedido.id} style={styles.pedidoCard}>
               {/* Estado del pedido y total */}
               <View style={styles.estadoContainer}>
                 <View style={[
@@ -466,7 +584,7 @@ const MisPedidos = () => {
                   {formatFecha(pedido.fechaPedido)}
                 </Text>
                 <Text style={styles.horaPedido}>
-                  {formatFechaHoraPedido(pedido.fechaPedido, pedido.idPedido)}
+                  {formatFechaHoraPedido(pedido.fechaPedido, pedido.idPedido || pedido.id || 'N/A')}
                 </Text>
               </View>
 
@@ -474,7 +592,7 @@ const MisPedidos = () => {
               <TouchableOpacity
                 style={styles.seguimientoButton}
                 onPress={() => setPedidoExpandido(
-                  pedidoExpandido === pedido.idPedido ? null : pedido.idPedido
+                  pedidoExpandido === (pedido.idPedido || pedido.id) ? null : (pedido.idPedido || pedido.id || '')
                 )}
                 activeOpacity={0.7}
               >
@@ -482,14 +600,14 @@ const MisPedidos = () => {
                   Seguimiento del pedido
                 </Text>
                 <Ionicons 
-                  name={pedidoExpandido === pedido.idPedido ? "chevron-up" : "chevron-down"} 
+                  name={pedidoExpandido === (pedido.idPedido || pedido.id) ? "chevron-up" : "chevron-down"} 
                   size={20} 
                   color="#FF6B35" 
                 />
               </TouchableOpacity>
 
               {/* Seguimiento expandido */}
-              {pedidoExpandido === pedido.idPedido && (
+              {pedidoExpandido === (pedido.idPedido || pedido.id) && (
                 <View style={styles.seguimientoExpandido}>
                   {/* Pasos de seguimiento */}
                   <View style={styles.pasosContainer}>
@@ -565,8 +683,8 @@ const MisPedidos = () => {
                 <TouchableOpacity
                   style={styles.detalleButton}
                   onPress={() => {
-                    console.log('Navegando a PedidoDetalle con ID:', pedido.idPedido);
-                    router.push(`/consumidor/PedidoDetalle?id=${pedido.idPedido}`);
+                    console.log('Navegando a PedidoDetalle con ID:', pedido.idPedido || pedido.id);
+                    router.push(`/consumidor/PedidoDetalle?id=${pedido.idPedido || pedido.id}`);
                   }}
                 >
                   <Ionicons name="eye-outline" size={18} color="#FF6B35" />
@@ -577,8 +695,8 @@ const MisPedidos = () => {
                   <TouchableOpacity
                     style={styles.facturaButton}
                     onPress={() => {
-                      console.log('Navegando a Factura con ID:', pedido.idPedido);
-                      router.push(`/consumidor/Factura?id=${pedido.idPedido}`);
+                      console.log('Navegando a Factura con ID:', pedido.idPedido || pedido.id);
+                      router.push(`/consumidor/Factura?id=${pedido.idPedido || pedido.id}`);
                     }}
                   >
                     <MaterialIcons name="receipt-long" size={18} color="#FF6B35" />
@@ -592,7 +710,7 @@ const MisPedidos = () => {
                 <View style={styles.entregadoContainer}>
                   <TouchableOpacity
                     style={styles.entregadoButton}
-                    onPress={() => handleMarcarEntregado(pedido.idPedido, pedido.metodoPago)}
+                    onPress={() => handleMarcarEntregado(pedido.idPedido || pedido.id || '', pedido.metodoPago)}
                   >
                     <FontAwesome5 name="check-circle" size={18} color="#FFFFFF" />
                     <Text style={styles.entregadoButtonText}>Marcar como entregado</Text>
