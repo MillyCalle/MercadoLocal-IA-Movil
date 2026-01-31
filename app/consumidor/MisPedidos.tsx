@@ -44,6 +44,9 @@ interface ResponseData {
   [key: string]: any;
 }
 
+// Definir tipos de filtro
+type FiltroEstado = 'todos' | 'pendientes' | 'en_proceso' | 'completados';
+
 // Componente para los círculos flotantes del fondo
 const FloatingCircles = () => {
   return (
@@ -163,6 +166,14 @@ const { width } = Dimensions.get('window');
 const MisPedidos = () => {
   const router = useRouter();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([]);
+  const [filtroActivo, setFiltroActivo] = useState<FiltroEstado>('todos');
+  const [contadores, setContadores] = useState({
+    todos: 0,
+    pendientes: 0,
+    en_proceso: 0,
+    completados: 0
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pedidoExpandido, setPedidoExpandido] = useState<string | null>(null);
@@ -170,6 +181,22 @@ const MisPedidos = () => {
 
   // Estados que permiten ver factura
   const estadosConFactura = ["PENDIENTE_VERIFICACION", "COMPLETADO", "ENVIADO", "ENTREGADO"];
+
+  // Definir qué estados corresponden a cada filtro
+  const estadosPorFiltro: Record<FiltroEstado, string[]> = {
+    'todos': ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO", "ENVIADO", "ENTREGADO", "CANCELADO"],
+    'pendientes': ["PENDIENTE", "PENDIENTE_VERIFICACION"],
+    'en_proceso': ["PROCESANDO", "ENVIADO"],
+    'completados': ["COMPLETADO", "ENTREGADO"]
+  };
+
+  // Nombres de los filtros
+  const nombresFiltros: Record<FiltroEstado, string> = {
+    'todos': 'Todos',
+    'pendientes': 'Pendientes',
+    'en_proceso': 'En proceso',
+    'completados': 'Completados'
+  };
 
   // Obtener token del AsyncStorage
   const getToken = async () => {
@@ -197,6 +224,42 @@ const MisPedidos = () => {
   // Verificar si es repartidor o vendedor
   const esRepartidorOVendedor = () => {
     return userRole === 'ROLE_REPARTIDOR' || userRole === 'ROLE_VENDEDOR';
+  };
+
+  // Función para filtrar pedidos
+  const filtrarPedidos = (pedidosLista: Pedido[], filtro: FiltroEstado) => {
+    if (filtro === 'todos') {
+      return pedidosLista;
+    }
+    
+    const estadosPermitidos = estadosPorFiltro[filtro];
+    return pedidosLista.filter(pedido => 
+      estadosPermitidos.includes(pedido.estadoPedido)
+    );
+  };
+
+  // Función para contar pedidos por estado
+  const contarPedidosPorEstado = (pedidosLista: Pedido[]) => {
+    const contadores = {
+      todos: pedidosLista.length,
+      pendientes: 0,
+      en_proceso: 0,
+      completados: 0
+    };
+
+    pedidosLista.forEach(pedido => {
+      const estado = pedido.estadoPedido;
+      
+      if (estadosPorFiltro.pendientes.includes(estado)) {
+        contadores.pendientes++;
+      } else if (estadosPorFiltro.en_proceso.includes(estado)) {
+        contadores.en_proceso++;
+      } else if (estadosPorFiltro.completados.includes(estado)) {
+        contadores.completados++;
+      }
+    });
+
+    return contadores;
   };
 
   // Función para cargar pedidos - CORREGIDA
@@ -302,7 +365,7 @@ const MisPedidos = () => {
       }
       
       // Ahora sí podemos filtrar (asegurándonos de que sea un array)
-      const pedidosFiltrados = pedidosProcesados.filter((p: Pedido) => {
+      const pedidosFiltradosInicial = pedidosProcesados.filter((p: Pedido) => {
         if (!p) return false;
         
         // Verificar campos mínimos
@@ -331,10 +394,10 @@ const MisPedidos = () => {
         return estadoValido && totalValido;
       });
       
-      console.log('✅ Pedidos después de filtrar:', pedidosFiltrados.length);
+      console.log('✅ Pedidos después de filtrar:', pedidosFiltradosInicial.length);
       
       // Ordenar por fecha (más reciente primero)
-      pedidosFiltrados.sort((a: Pedido, b: Pedido) => {
+      pedidosFiltradosInicial.sort((a: Pedido, b: Pedido) => {
         try {
           const fechaA = a.fechaPedido ? new Date(a.fechaPedido).getTime() : 0;
           const fechaB = b.fechaPedido ? new Date(b.fechaPedido).getTime() : 0;
@@ -345,7 +408,16 @@ const MisPedidos = () => {
         }
       });
       
-      setPedidos(pedidosFiltrados);
+      // Actualizar estados
+      setPedidos(pedidosFiltradosInicial);
+      
+      // Calcular contadores
+      const nuevosContadores = contarPedidosPorEstado(pedidosFiltradosInicial);
+      setContadores(nuevosContadores);
+      
+      // Aplicar filtro activo
+      const pedidosConFiltro = filtrarPedidos(pedidosFiltradosInicial, filtroActivo);
+      setPedidosFiltrados(pedidosConFiltro);
       
     } catch (err: any) {
       console.error("❌ Error cargando pedidos:", err);
@@ -364,11 +436,29 @@ const MisPedidos = () => {
       
       Alert.alert("Error", mensajeError);
       
-      // En caso de error, mostrar array vacío
+      // En caso de error, mostrar arrays vacíos
       setPedidos([]);
+      setPedidosFiltrados([]);
+      setContadores({
+        todos: 0,
+        pendientes: 0,
+        en_proceso: 0,
+        completados: 0
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Función para cambiar filtro
+  const cambiarFiltro = (filtro: FiltroEstado) => {
+    setFiltroActivo(filtro);
+    
+    // Si ya tenemos los pedidos cargados, solo filtramos
+    if (pedidos.length > 0) {
+      const nuevosFiltrados = filtrarPedidos(pedidos, filtro);
+      setPedidosFiltrados(nuevosFiltrados);
     }
   };
 
@@ -515,10 +605,42 @@ const MisPedidos = () => {
         </Text>
       </View>
 
+      {/* Filtros por estado */}
+      <View style={styles.filtrosContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtrosScrollContent}
+        >
+          {(['todos', 'pendientes', 'en_proceso', 'completados'] as FiltroEstado[]).map((filtro) => (
+            <TouchableOpacity
+              key={filtro}
+              style={[
+                styles.filtroButton,
+                filtroActivo === filtro && styles.filtroButtonActive
+              ]}
+              onPress={() => cambiarFiltro(filtro)}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.filtroButtonText,
+                filtroActivo === filtro && styles.filtroButtonTextActive
+              ]}>
+                {nombresFiltros[filtro]} ({contadores[filtro]})
+              </Text>
+              
+              {filtroActivo === filtro && (
+                <View style={styles.filtroIndicator} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Contador de pedidos */}
       <View style={styles.counterContainer}>
         <Text style={styles.counterText}>
-          {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} realizado{pedidos.length !== 1 ? 's' : ''}
+          {pedidosFiltrados.length} pedido{pedidosFiltrados.length !== 1 ? 's' : ''} {nombresFiltros[filtroActivo].toLowerCase()}
         </Text>
       </View>
 
@@ -535,7 +657,7 @@ const MisPedidos = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {pedidos.map((pedido) => {
+        {pedidosFiltrados.map((pedido) => {
           const puedeVerFactura = estadosConFactura.includes(pedido.estadoPedido);
           const puedeMarcarComoEntregado = esRepartidorOVendedor() && 
             (pedido.estadoSeguimiento === 'EN_CAMINO' || pedido.estadoPedido === 'ENVIADO');
@@ -721,6 +843,19 @@ const MisPedidos = () => {
           );
         })}
         
+        {/* Mostrar mensaje si no hay pedidos con el filtro aplicado */}
+        {pedidosFiltrados.length === 0 && pedidos.length > 0 && (
+          <View style={styles.sinResultadosContainer}>
+            <Text style={styles.sinResultadosIcon}>🔍</Text>
+            <Text style={styles.sinResultadosTitle}>
+              No hay pedidos {filtroActivo !== 'todos' ? nombresFiltros[filtroActivo].toLowerCase() : ''}
+            </Text>
+            <Text style={styles.sinResultadosSubtitle}>
+              Intenta con otro filtro o revisa más tarde
+            </Text>
+          </View>
+        )}
+        
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
@@ -851,6 +986,50 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   
+  // Filtros
+  filtrosContainer: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  filtrosScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  filtroButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    position: 'relative',
+  },
+  filtroButtonActive: {
+    backgroundColor: "#FFF7ED",
+    borderColor: "#FF6B35",
+  },
+  filtroButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    fontFamily: "System",
+  },
+  filtroButtonTextActive: {
+    color: "#FF6B35",
+    fontWeight: "700",
+  },
+  filtroIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    left: '25%',
+    right: '25%',
+    height: 3,
+    backgroundColor: '#FF6B35',
+    borderRadius: 2,
+  },
+  
   counterContainer: {
     backgroundColor: "#f8f9fa",
     paddingHorizontal: 20,
@@ -890,6 +1069,43 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 30,
+    fontFamily: "System",
+  },
+  
+  // Sin resultados del filtro
+  sinResultadosContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+    backgroundColor: "white",
+    borderRadius: 16,
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  sinResultadosIcon: {
+    fontSize: 60,
+    marginBottom: 16,
+    color: "#9CA3AF",
+  },
+  sinResultadosTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginBottom: 8,
+    textAlign: "center",
+    fontFamily: "System",
+  },
+  sinResultadosSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
     fontFamily: "System",
   },
   
