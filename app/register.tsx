@@ -550,6 +550,7 @@ export default function RegisterScreen() {
     apellido: "",
     correo: "",
     contrasena: "",
+    confirmarContrasena: "", // CAMPO AÑADIDO
     fechaNacimiento: "",
     idRol: 3,
     cedula: "",
@@ -563,6 +564,7 @@ export default function RegisterScreen() {
   });
   
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // ESTADO AÑADIDO
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedYear, setSelectedYear] = useState("");
@@ -594,8 +596,29 @@ export default function RegisterScreen() {
     setShowDatePicker(false);
   };
 
+  // FUNCIÓN PARA VALIDAR CONTRASEÑAS
+  const validatePasswords = () => {
+    if (!form.contrasena) {
+      Alert.alert("Campo Requerido", "Por favor ingresa una contraseña");
+      return false;
+    }
+    if (form.contrasena.length < 6) {
+      Alert.alert("Contraseña Débil", "La contraseña debe tener al menos 6 caracteres");
+      return false;
+    }
+    if (!form.confirmarContrasena) {
+      Alert.alert("Campo Requerido", "Por favor confirma tu contraseña");
+      return false;
+    }
+    if (form.contrasena !== form.confirmarContrasena) {
+      Alert.alert("Error", "Las contraseñas no coinciden");
+      return false;
+    }
+    return true;
+  };
+
   const handleRegister = async () => {
-    if (!form.nombre || !form.apellido || !form.correo || !form.contrasena || !form.fechaNacimiento) {
+    if (!form.nombre || !form.apellido || !form.correo || !form.fechaNacimiento) {
       Alert.alert("Campos Requeridos", "Por favor completa todos los campos obligatorios");
       return;
     }
@@ -606,8 +629,8 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (form.contrasena.length < 6) {
-      Alert.alert("Contraseña Débil", "La contraseña debe tener al menos 6 caracteres");
+    // Validar contraseñas
+    if (!validatePasswords()) {
       return;
     }
 
@@ -629,12 +652,30 @@ export default function RegisterScreen() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
       
+      // Enviar solo los campos necesarios (sin confirmarContrasena)
+      const dataToSend = {
+        nombre: form.nombre,
+        apellido: form.apellido,
+        correo: form.correo,
+        contrasena: form.contrasena,
+        fechaNacimiento: form.fechaNacimiento,
+        idRol: form.idRol,
+        cedula: form.idRol === 3 ? form.cedula : "",
+        direccion: form.idRol === 3 ? form.direccion : "",
+        telefono: form.idRol === 3 ? form.telefono : "",
+        nombreEmpresa: form.idRol === 2 ? form.nombreEmpresa : "",
+        ruc: form.idRol === 2 ? form.ruc : "",
+        direccionEmpresa: form.idRol === 2 ? form.direccionEmpresa : "",
+        telefonoEmpresa: form.idRol === 2 ? form.telefonoEmpresa : "",
+        descripcion: form.idRol === 2 ? form.descripcion : ""
+      };
+      
       const response = await fetch(`${API_CONFIG.BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(dataToSend),
         signal: controller.signal,
       });
 
@@ -810,6 +851,7 @@ export default function RegisterScreen() {
               editable={!loading}
             />
 
+            {/* Contraseña */}
             <Text style={styles.formLabel}>Contraseña</Text>
             <View style={styles.passwordContainer}>
               <AnimatedInput
@@ -828,6 +870,37 @@ export default function RegisterScreen() {
                 <Text style={styles.eyeText}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Confirmar Contraseña - CAMPO AÑADIDO */}
+            <Text style={styles.formLabel}>Confirmar Contraseña</Text>
+            <View style={styles.passwordContainer}>
+              <AnimatedInput
+                placeholder="••••••••"
+                value={form.confirmarContrasena}
+                onChangeText={(v: string) => handleChange("confirmarContrasena", v)}
+                secureTextEntry={!showConfirmPassword}
+                icon="🔒"
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={loading}
+              >
+                <Text style={styles.eyeText}>{showConfirmPassword ? "👁️" : "👁️‍🗨️"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Indicador visual de coincidencia de contraseñas - NUEVO */}
+            {form.contrasena && form.confirmarContrasena && (
+              <View style={styles.passwordMatchIndicator}>
+                {form.contrasena === form.confirmarContrasena ? (
+                  <Text style={styles.passwordMatchText}>✓ Las contraseñas coinciden</Text>
+                ) : (
+                  <Text style={styles.passwordMismatchText}>✗ Las contraseñas no coinciden</Text>
+                )}
+              </View>
+            )}
 
             <Text style={styles.formLabel}>Fecha de nacimiento</Text>
             <TouchableOpacity
@@ -1070,14 +1143,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // Distribuye espacio
+    justifyContent: "space-between",
     marginBottom: 10,
     width: '100%',
   },
   backButton: {
     padding: 8,
-    width: 40, // Ancho fijo
-    alignItems: 'flex-start', // Alineado a la izquierda
+    width: 40,
+    alignItems: 'flex-start',
   },
   backIcon: {
     fontSize: 24,
@@ -1086,14 +1159,14 @@ const styles = StyleSheet.create({
   },
   logoCenterContainer: {
     flex: 1,
-    alignItems: "center", // Centra horizontalmente
+    alignItems: "center",
     justifyContent: "center",
   },
   headerSpacer: {
-    width: 40, // Mismo ancho que el botón de atrás
+    width: 40,
   },
   
-  // Logo Container (ya centrado por el contenedor padre)
+  // Logo Container
   logoContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -1306,6 +1379,24 @@ const styles = StyleSheet.create({
   },
   eyeText: {
     fontSize: 16,
+  },
+  
+  // Indicador de coincidencia de contraseñas - NUEVO
+  passwordMatchIndicator: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  passwordMatchText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: "600",
+    fontFamily: TYPOGRAPHY.medium,
+  },
+  passwordMismatchText: {
+    fontSize: 12,
+    color: "#ff4444",
+    fontWeight: "600",
+    fontFamily: TYPOGRAPHY.medium,
   },
   
   // Date

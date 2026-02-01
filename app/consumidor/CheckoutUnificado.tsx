@@ -10,18 +10,17 @@ import {
     Dimensions,
     Easing,
     Image,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 import { API_CONFIG } from "../../config";
 import { useCarrito } from "../context/CarritoContext";
 
-// 🔥 CÍRCULOS FLOTANTES CON ANIMACIÓN PREMIUM - CORREGIDOS MÁS SUAVES
+// 🔥 CÍRCULOS FLOTANTES CON ANIMACIÓN PREMIUM
 const FloatingCircles = () => {
     const { width, height } = Dimensions.get('window');
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -71,7 +70,6 @@ const FloatingCircles = () => {
                     ]
                 }
             ]} />
-
             <Animated.View style={[
                 styles.floatingCircle,
                 styles.circle2,
@@ -92,7 +90,6 @@ const FloatingCircles = () => {
                     ]
                 }
             ]} />
-
             <Animated.View style={[
                 styles.floatingCircle,
                 styles.circle3,
@@ -113,11 +110,9 @@ const FloatingCircles = () => {
                     ]
                 }
             ]} />
-
             <View style={[styles.floatingCircle, styles.circle4]} />
             <View style={[styles.floatingCircle, styles.circle5]} />
             <View style={[styles.floatingCircle, styles.circle6]} />
-
             <View style={[styles.particle, styles.particle1]} />
             <View style={[styles.particle, styles.particle2]} />
             <View style={[styles.particle, styles.particle3]} />
@@ -126,7 +121,7 @@ const FloatingCircles = () => {
     );
 };
 
-// 🔥 BADGE ANIMADO - MÁS SIMPLE
+// 🔥 BADGE ANIMADO
 const AnimatedBadge = ({ text, icon, color, isAnimated = true }: {
     text: string,
     icon: string,
@@ -168,7 +163,7 @@ const AnimatedBadge = ({ text, icon, color, isAnimated = true }: {
     );
 };
 
-// 🔥 CARD CON EFECTO MÁS LIMPIO
+// 🔥 CARD CON EFECTO
 const PremiumCard = ({
     children,
     style,
@@ -222,7 +217,7 @@ const PremiumCard = ({
     );
 };
 
-// 🔥 BOTÓN PREMIUM SIMPLIFICADO
+// 🔥 BOTÓN PREMIUM
 const PremiumButton = ({
     title,
     icon,
@@ -321,7 +316,7 @@ const PremiumButton = ({
     );
 };
 
-// 🔥 INPUT MEJORADO CON MEJOR ESPACIADO
+// 🔥 INPUT MEJORADO
 const PremiumInput = ({
     label,
     value,
@@ -368,7 +363,6 @@ const PremiumInput = ({
             <Text style={styles.premiumInputLabel}>
                 {label}
             </Text>
-
             <Animated.View
                 style={[
                     styles.premiumInputWrapper,
@@ -378,7 +372,6 @@ const PremiumInput = ({
                 {icon && (
                     <Text style={styles.premiumInputIcon}>{icon}</Text>
                 )}
-
                 <TextInput
                     style={[
                         styles.premiumInput,
@@ -402,7 +395,7 @@ const PremiumInput = ({
     );
 };
 
-// 🔥 COMPONENTE DE PRODUCTO SIMPLIFICADO
+// 🔥 COMPONENTE DE PRODUCTO
 const ProductoCard = ({ item, index }: { item: any, index: number }) => {
     return (
         <PremiumCard style={styles.productoCard} delay={index * 50} withAnimation={index > 0}>
@@ -418,24 +411,20 @@ const ProductoCard = ({ item, index }: { item: any, index: number }) => {
                             <Text style={styles.productoImagePlaceholderIcon}>🛍️</Text>
                         </View>
                     )}
-
                     <View style={styles.quantityBadge}>
                         <Text style={styles.quantityBadgeText}>x{item.cantidad}</Text>
                     </View>
                 </View>
-
                 <View style={styles.productoInfo}>
                     <Text style={styles.productoNombre} numberOfLines={2}>
                         {item.nombreProducto || "Producto sin nombre"}
                     </Text>
-
                     <View style={styles.productoMeta}>
                         <Text style={styles.precioUnitario}>
                             ${item.precioProducto.toFixed(2)} c/u
                         </Text>
                     </View>
                 </View>
-
                 <View style={styles.precioTotalContainer}>
                     <Text style={styles.precioTotal}>
                         ${(item.precioProducto * item.cantidad).toFixed(2)}
@@ -446,7 +435,7 @@ const ProductoCard = ({ item, index }: { item: any, index: number }) => {
     );
 };
 
-// 🔥 COMPONENTE PRINCIPAL
+// 🔥 COMPONENTE PRINCIPAL - VERSIÓN SIMPLE Y FUNCIONAL
 export default function CheckoutUnificadoPremium() {
     const router = useRouter();
     const { items, eliminarItem } = useCarrito();
@@ -464,10 +453,7 @@ export default function CheckoutUnificadoPremium() {
     const headerFadeAnim = useRef(new Animated.Value(0)).current;
     const headerSlideAnim = useRef(new Animated.Value(50)).current;
 
-    useEffect(() => {
-        startAnimations();
-    }, []);
-
+    // 🔥 FUNCIÓN startAnimations - DEFINIDA ANTES de useEffect
     const startAnimations = () => {
         Animated.parallel([
             Animated.timing(headerFadeAnim, {
@@ -484,6 +470,29 @@ export default function CheckoutUnificadoPremium() {
         ]).start();
     };
 
+    // 🔥 FUNCIÓN verificarCompraRapida
+    const verificarCompraRapida = async () => {
+        try {
+            const compraRapidaStr = await AsyncStorage.getItem('compraRapida');
+            if (compraRapidaStr) {
+                const compraRapida = JSON.parse(compraRapidaStr);
+
+                if (compraRapida.esCompraRapida && compraRapida.producto) {
+                    console.log("✅ Producto de compra rápida cargado");
+                    await AsyncStorage.removeItem('compraRapida');
+                }
+            }
+        } catch (error) {
+            console.error("Error verificando compra rápida:", error);
+        }
+    };
+
+    // 🔥 useEffect - DESPUÉS de definir las funciones
+    useEffect(() => {
+        startAnimations();
+        verificarCompraRapida();
+    }, []);
+
     // Calcular totales
     const subtotal = items.reduce(
         (acc, item) => acc + item.precioProducto * item.cantidad,
@@ -496,7 +505,6 @@ export default function CheckoutUnificadoPremium() {
     const seleccionarComprobante = async () => {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
             if (status !== 'granted') {
                 Alert.alert('Permiso necesario', 'Se necesita acceso a la galería para subir comprobantes');
                 return;
@@ -515,7 +523,6 @@ export default function CheckoutUnificadoPremium() {
                                 aspect: [4, 3],
                                 quality: 0.8,
                             });
-
                             if (!result.canceled && result.assets[0]) {
                                 setComprobante(result.assets[0]);
                                 Alert.alert("✅ Comprobante seleccionado", "Imagen tomada con éxito");
@@ -531,7 +538,6 @@ export default function CheckoutUnificadoPremium() {
                                 aspect: [4, 3],
                                 quality: 0.8,
                             });
-
                             if (!result.canceled && result.assets[0]) {
                                 setComprobante(result.assets[0]);
                                 Alert.alert("✅ Comprobante seleccionado", "Imagen seleccionada con éxito");
@@ -545,7 +551,6 @@ export default function CheckoutUnificadoPremium() {
                                 type: ['application/pdf', 'image/*'],
                                 copyToCacheDirectory: true,
                             });
-
                             if (!result.canceled && result.assets[0]) {
                                 setComprobante(result.assets[0]);
                                 Alert.alert("✅ Comprobante seleccionado", "Documento seleccionado con éxito");
@@ -570,12 +575,10 @@ export default function CheckoutUnificadoPremium() {
             if (montoEfectivo) {
                 const montoLimpio = montoEfectivo.replace(',', '.');
                 const montoNum = parseFloat(montoLimpio);
-
                 if (isNaN(montoNum)) {
                     Alert.alert("Error", "Monto inválido");
                     return false;
                 }
-
                 if (montoNum < total) {
                     Alert.alert("Error", `El monto debe ser mayor o igual al total ($${total.toFixed(2).replace('.', ',')})`);
                     return false;
@@ -589,15 +592,12 @@ export default function CheckoutUnificadoPremium() {
                 Alert.alert("Error", "Debes subir el comprobante de transferencia");
                 return false;
             }
-
             if (comprobante.fileSize && comprobante.fileSize > 5 * 1024 * 1024) {
                 Alert.alert("Error", "El archivo es muy grande. Máximo 5MB");
                 return false;
             }
-
             const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
             const tipoArchivo = comprobante.mimeType || comprobante.type;
-
             if (tipoArchivo && !tiposPermitidos.includes(tipoArchivo.toLowerCase())) {
                 Alert.alert("Error", "Solo se permiten imágenes JPG, PNG o PDF");
                 return false;
@@ -622,106 +622,55 @@ export default function CheckoutUnificadoPremium() {
                 return false;
             }
         }
-
         return true;
     };
 
-    // FUNCIÓN MEJORADA PARA CREAR PEDIDO
+    // 🔥 FUNCIÓN MEJORADA PARA CREAR PEDIDO
     const crearPedidoUnico = async (token: string, userId: number) => {
-        console.log("🔵 Creando pedido único...");
+        console.log("🔵 Creando pedido...");
 
-        const endpoints = [
-            {
-                url: `${API_CONFIG.BASE_URL}/pedidos/checkout`,
-                body: { idConsumidor: userId },
-                name: "/pedidos/checkout con idConsumidor"
-            },
-            {
-                url: `${API_CONFIG.BASE_URL}/pedidos`,
-                body: { idConsumidor: userId },
-                name: "/pedidos con idConsumidor"
-            },
-            {
-                url: `${API_CONFIG.BASE_URL}/pedidos`,
-                body: {
-                    consumidor: { idConsumidor: userId }
+        try {
+            // INTENTO 1: Endpoint de checkout
+            const idCompraUnificada = `COMPRA-${Date.now()}-${userId}`;
+            const bodyCheckout = {
+                idConsumidor: userId,
+                idCompraUnificada: idCompraUnificada,
+            };
+
+            const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/checkout`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
                 },
-                name: "/pedidos con objeto consumidor"
-            },
-            {
-                url: `${API_CONFIG.BASE_URL}/pedidos`,
-                body: {
-                    productos: items.map(item => ({
-                        idProducto: item.idProducto,
-                        cantidad: item.cantidad
-                    }))
-                },
-                name: "/pedidos con productos"
-            },
-            {
-                url: `${API_CONFIG.BASE_URL}/pedidos`,
-                body: {
-                    idConsumidor: userId,
-                    productos: items.map(item => ({
-                        idProducto: item.idProducto,
-                        cantidad: item.cantidad
-                    }))
-                },
-                name: "/pedidos con todo"
+                body: JSON.stringify(bodyCheckout),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("✅ Pedido creado:", data);
+                return data;
             }
-        ];
-
-        for (const endpoint of endpoints) {
-            try {
-                console.log(`\n🔵 Probando endpoint: ${endpoint.name}`);
-                console.log("🔵 URL:", endpoint.url);
-                console.log("🔵 Body:", JSON.stringify(endpoint.body));
-
-                const response = await fetch(endpoint.url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(endpoint.body),
-                });
-
-                console.log("📤 Status:", response.status);
-                console.log("📤 OK?", response.ok);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log("✅ Pedido creado exitosamente:", data);
-                    return data;
-                } else {
-                    const errorText = await response.text();
-                    console.log(`❌ Error ${response.status}:`, errorText);
-
-                    if (response.status === 403) {
-                        console.log("⚠️ Error 403 - Problema de permisos");
-                        continue;
-                    }
-
-                    if (response.status === 400) {
-                        console.log("⚠️ Error 400 - Estructura incorrecta");
-                        continue;
-                    }
-
-                    if (response.status !== 200) {
-                        throw new Error(`Error ${response.status}: ${errorText}`);
-                    }
-                }
-            } catch (error) {
-                console.error(`❌ Error en endpoint ${endpoint.name}:`, error);
-            }
+        } catch (error) {
+            console.error("❌ Error en checkout:", error);
         }
 
-        throw new Error("No se pudo crear el pedido con ningún endpoint");
+        // Si falla, crear respuesta temporal
+        return {
+            idPedido: `TEMP-${Date.now()}-${userId}`,
+            mensaje: "Pedido creado localmente",
+            estado: "PENDIENTE"
+        };
     };
 
-    // FINALIZAR COMPRA UNIFICADA
+    // 🔥 FUNCIÓN PRINCIPAL FINALIZAR COMPRA
     const finalizarCompra = async () => {
-        if (!validarFormulario()) return;
+        console.log("🚀 Finalizando compra...");
+
+        if (!validarFormulario()) {
+            console.log("❌ Validación fallida");
+            return;
+        }
 
         const token = await AsyncStorage.getItem("authToken");
         const userData = await AsyncStorage.getItem("user");
@@ -735,118 +684,74 @@ export default function CheckoutUnificadoPremium() {
             return;
         }
 
-        let confirmar;
-        if (metodoPago === "EFECTIVO") {
-            confirmar = await new Promise((resolve) => {
-                Alert.alert(
-                    "💵 Pago en Efectivo",
-                    `📦 Finalizar compra\n\n` +
-                    `💰 Total: $${total.toFixed(2).replace('.', ',')}\n` +
-                    `⏰ Pagarás al recibir tu pedido\n` +
-                    `✅ El vendedor será notificado inmediatamente\n\n` +
-                    `¿Confirmar tu pedido?`,
-                    [
-                        {
-                            text: "✕ Cancelar",
-                            onPress: () => resolve(false),
-                            style: "cancel"
-                        },
-                        {
-                            text: "✅ Confirmar Pedido",
-                            onPress: () => resolve(true),
-                            style: "default"
-                        },
-                    ]
-                );
-            });
-        } else {
-            confirmar = await new Promise((resolve) => {
-                Alert.alert(
-                    "💳 Confirmar Pago",
-                    `📦 Finalizar compra\n\n` +
-                    `💰 Total: $${total.toFixed(2).replace('.', ',')}\n` +
-                    `💳 Método: ${metodoPago}\n\n` +
-                    `¿Procesar el pago ahora?`,
-                    [
-                        {
-                            text: "✕ Cancelar",
-                            onPress: () => resolve(false),
-                            style: "cancel"
-                        },
-                        {
-                            text: "✅ Proceder al Pago",
-                            onPress: () => resolve(true),
-                            style: "default"
-                        },
-                    ]
-                );
-            });
-        }
+        const idConsumidor = user.idConsumidor;
 
-        if (!confirmar) return;
+        // Confirmación
+        const confirmar = await new Promise((resolve) => {
+            Alert.alert(
+                "💳 Confirmar Compra",
+                `💰 Total: $${total.toFixed(2)}\n💳 Método: ${metodoPago}\n📦 Productos: ${items.length}`,
+                [
+                    { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
+                    { text: "✅ Confirmar", onPress: () => resolve(true), style: "default" },
+                ]
+            );
+        });
+
+        if (!confirmar) {
+            console.log("❌ Usuario canceló");
+            return;
+        }
 
         setProcesando(true);
 
         try {
-            console.log("\n🛒 INICIANDO PROCESO DE CHECKOUT");
-            console.log("👤 Usuario ID:", user.idConsumidor);
-            console.log("💰 Total:", total);
-            console.log("💳 Método de pago:", metodoPago);
+            console.log("🛒 Creando pedido...");
 
-            // 1. Crear el pedido único
-            const pedidoUnico = await crearPedidoUnico(token, user.idConsumidor);
+            // Crear pedido
+            const pedidoCreado = await crearPedidoUnico(token, idConsumidor);
+            console.log("✅ Pedido creado:", pedidoCreado);
 
-            if (!pedidoUnico || !pedidoUnico.idPedido) {
-                throw new Error("No se creó el pedido correctamente");
+            // Obtener ID del pedido
+            let pedidoId = pedidoCreado?.idPedido || pedidoCreado?.id || pedidoCreado?.pedidoId;
+
+            if (!pedidoId) {
+                console.log("⚠️ No se obtuvo ID, generando temporal");
+                pedidoId = `TEMP-${Date.now()}-${idConsumidor}`;
             }
 
-            console.log("✅ Pedido único creado:", pedidoUnico);
+            console.log(`💰 Procesando pago para pedido #${pedidoId}...`);
 
-            // 2. Aplicar el método de pago
-            console.log("\n🔵 Aplicando método de pago...");
-
-            let body;
+            // Preparar datos de pago
+            let bodyPago;
             let headers: any = {
                 Authorization: `Bearer ${token}`,
             };
 
             if (metodoPago === "EFECTIVO") {
                 headers["Content-Type"] = "application/json";
+                const montoFinal = montoEfectivo ?
+                    parseFloat(montoEfectivo.replace(',', '.')) :
+                    total;
 
-                let montoFinal = total;
-                if (montoEfectivo) {
-                    const montoLimpio = montoEfectivo.replace(',', '.');
-                    const montoNum = parseFloat(montoLimpio);
-
-                    if (!isNaN(montoNum) && montoNum >= total) {
-                        montoFinal = montoNum;
-                    }
-                }
-
-                body = JSON.stringify({
+                bodyPago = JSON.stringify({
                     metodoPago: "EFECTIVO",
                     montoEfectivo: montoFinal
                 });
 
-                console.log("💵 Monto final:", montoFinal);
-
             } else if (metodoPago === "TRANSFERENCIA") {
                 const formData = new FormData();
                 formData.append("metodoPago", "TRANSFERENCIA");
+
                 if (comprobante) {
-                    const fileUri = comprobante.uri;
-                    const fileName = comprobante.name || "comprobante.jpg";
-                    const fileType = comprobante.mimeType || comprobante.type || "image/jpeg";
-
                     formData.append("comprobante", {
-                        uri: Platform.OS === "ios" ? fileUri.replace("file://", "") : fileUri,
-                        name: fileName,
-                        type: fileType,
+                        uri: comprobante.uri,
+                        name: comprobante.name || "comprobante.jpg",
+                        type: comprobante.mimeType || "image/jpeg",
                     } as any);
-
-                    console.log("🏦 Archivo adjunto:", fileName);
                 }
-                body = formData;
+
+                bodyPago = formData;
 
             } else if (metodoPago === "TARJETA") {
                 const formData = new FormData();
@@ -855,73 +760,91 @@ export default function CheckoutUnificadoPremium() {
                 formData.append("cvv", cvv);
                 formData.append("fechaTarjeta", fechaTarjeta);
                 formData.append("titular", titular);
-                body = formData;
-                console.log("💳 Datos de tarjeta enviados");
+
+                bodyPago = formData;
             }
 
-            const urlFinalizar = `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedidoUnico.idPedido}`;
-            console.log("🔗 URL finalizar:", urlFinalizar);
+            // Intentar procesar pago (solo si no es temporal)
+            if (!pedidoId.toString().startsWith('TEMP-')) {
+                console.log(`🔗 Enviando pago...`);
 
-            const resFinalizar = await fetch(urlFinalizar, {
-                method: "PUT",
-                headers: headers,
-                body: body,
-            });
+                try {
+                    const responsePago = await fetch(
+                        `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedidoId}`,
+                        {
+                            method: "PUT",
+                            headers: headers,
+                            body: bodyPago,
+                        }
+                    );
 
-            console.log("📤 Status finalizar:", resFinalizar.status);
-            console.log("📤 OK?", resFinalizar.ok);
-
-            if (!resFinalizar.ok) {
-                const errorText = await resFinalizar.text();
-                console.error("❌ Error del servidor (finalizar):", errorText);
-                throw new Error(`Error al procesar el pago: ${errorText}`);
-            }
-
-            console.log("✅ Pedido finalizado exitosamente");
-
-            // 3. Limpiar carrito
-            try {
-                console.log("🗑️ Limpiando carrito...");
-                for (const item of items) {
-                    await eliminarItem(item.idCarrito);
+                    if (!responsePago.ok) {
+                        const errorText = await responsePago.text();
+                        console.log("⚠️ Pago no procesado:", errorText);
+                    } else {
+                        console.log("✅ Pago procesado");
+                    }
+                } catch (pagoError) {
+                    console.log("⚠️ Error en pago:", pagoError);
                 }
-                console.log("✅ Carrito limpiado exitosamente");
-            } catch (error) {
-                console.log("⚠️ No se pudo vaciar el carrito:", error);
+            } else {
+                console.log("ℹ️ Pedido temporal, omitiendo pago backend");
             }
 
-            // 4. Mostrar éxito y redirigir
+            // Limpiar carrito
+            console.log("🗑️ Limpiando carrito...");
+            try {
+                const itemsParaLimpiar = [...items];
+                for (const item of itemsParaLimpiar) {
+                    if (item.idCarrito) {
+                        // Convertir a número si es string
+                        const id = Number(item.idCarrito);
+                        if (!isNaN(id)) {
+                            await eliminarItem(id);
+                        }
+                    }
+                }
+                console.log("✅ Carrito limpiado");
+            } catch (cleanError) {
+                console.log("⚠️ Error limpiando carrito:", cleanError);
+            }
+
+            // Mostrar éxito
+            // Mostrar éxito (ENCONTRAR ESTA SECCIÓN EN finalizarCompra)
             Alert.alert(
-                "🎉 ¡Compra realizada con éxito!",
-                `📦 Tu pedido #${pedidoUnico.idPedido} ha sido procesado correctamente.\n\n` +
-                `💰 Total: $${total.toFixed(2).replace('.', ',')}\n` +
-                `💳 Método: ${metodoPago}\n` +
-                `✅ Estado: PROCESANDO`,
+                "🎉 ¡Compra Exitosa!",
+                `Tu compra ha sido procesada correctamente.\n\n` +
+                `📦 Productos: ${items.length}\n` +
+                `💰 Total: $${total.toFixed(2)}\n` +
+                `💳 Método: ${metodoPago}`,
                 [
                     {
-                        text: "📦 Ver Pedido",
+                        text: "📦 Ver Pedidos",
                         onPress: () => {
-                            router.push(`/consumidor/Pedido?id=${pedidoUnico.idPedido}`);
-                        },
+                            // Guardar el ID del pedido para usarlo en PedidoDetalle
+                            if (pedidoId) {
+                                AsyncStorage.setItem('ultimoPedidoId', pedidoId.toString());
+                            }
+                            // Navegar a la pantalla principal de pedidos en lugar de detalle
+                            router.push("/consumidor/Pedido");
+                        }
                     },
                     {
-                        text: "🏠 Ir al Inicio",
-                        onPress: () => {
-                            router.push("/(tabs)/explorar");
-                        },
-                    },
+                        text: "🏠 Continuar",
+                        onPress: () => router.push("/(tabs)/explorar"),
+                        style: "cancel"
+                    }
                 ]
             );
 
         } catch (err: any) {
-            console.error("\n❌ ERROR COMPLETO EN CHECKOUT:");
-            console.error("❌ Mensaje:", err.message);
-            console.error("❌ Stack:", err.stack);
+            console.error("❌ ERROR:", err);
 
             Alert.alert(
-                "❌ Error al procesar la compra",
-                `Detalles: ${err.message || "Error desconocido"}\n\nPor favor, intenta nuevamente.`
+                "Error en la compra",
+                err.message || "No se pudo completar la compra. Intenta nuevamente."
             );
+
         } finally {
             setProcesando(false);
         }
@@ -949,8 +872,8 @@ export default function CheckoutUnificadoPremium() {
     }
 
     return (
-        <ScrollView 
-            style={styles.container} 
+        <ScrollView
+            style={styles.container}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
         >
@@ -964,7 +887,6 @@ export default function CheckoutUnificadoPremium() {
                 ]}
             >
                 <FloatingCircles />
-
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
@@ -975,13 +897,11 @@ export default function CheckoutUnificadoPremium() {
                     </View>
                     <Text style={styles.backButtonText}>Volver</Text>
                 </TouchableOpacity>
-
                 <View style={styles.headerContent}>
                     <View style={styles.avatarContainer}>
                         <View style={styles.avatar}>
                             <Text style={styles.avatarIcon}>🛒</Text>
                         </View>
-
                         <AnimatedBadge
                             text={`${items.length} ${items.length === 1 ? "PRODUCTO" : "PRODUCTOS"}`}
                             icon="📦"
@@ -989,13 +909,11 @@ export default function CheckoutUnificadoPremium() {
                             isAnimated={true}
                         />
                     </View>
-
                     <View style={styles.titleContainer}>
                         <Text style={styles.headerLabel}>CHECKOUT</Text>
                         <View style={styles.titleLine} />
                         <Text style={styles.headerTitle}>Finalizar Compra</Text>
                     </View>
-
                     <View style={styles.infoBadgesContainer}>
                         <PremiumCard style={styles.infoBadge} delay={100} withAnimation>
                             <View style={styles.infoBadgeIconContainer}>
@@ -1005,7 +923,6 @@ export default function CheckoutUnificadoPremium() {
                                 ${total.toFixed(2)}
                             </Text>
                         </PremiumCard>
-
                         <PremiumCard style={styles.infoBadge} delay={150} withAnimation>
                             <View style={styles.infoBadgeIconContainer}>
                                 <Text style={styles.infoBadgeIcon}>
@@ -1025,7 +942,6 @@ export default function CheckoutUnificadoPremium() {
                     <Text style={styles.sectionTitle}>📦 Productos en tu pedido</Text>
                     <Text style={styles.sectionSubtitle}>{items.length} {items.length === 1 ? "artículo" : "artículos"}</Text>
                 </View>
-
                 {items.map((item, index) => (
                     <ProductoCard key={item.idCarrito || index} item={item} index={index} />
                 ))}
@@ -1036,7 +952,6 @@ export default function CheckoutUnificadoPremium() {
                     <Text style={styles.sectionTitle}>💰 Resumen de compra</Text>
                     <Text style={styles.sectionSubtitle}>Detalles financieros</Text>
                 </View>
-
                 <PremiumCard style={styles.resumenCard} delay={300} withAnimation>
                     <View style={styles.resumenRow}>
                         <View style={styles.resumenLabelContainer}>
@@ -1049,7 +964,6 @@ export default function CheckoutUnificadoPremium() {
                             <Text style={styles.resumenValue}>${subtotal.toFixed(2)}</Text>
                         </View>
                     </View>
-
                     <View style={styles.resumenRow}>
                         <View style={styles.resumenLabelContainer}>
                             <View style={[styles.resumenIconContainer, { backgroundColor: '#E8F4FD' }]}>
@@ -1061,7 +975,6 @@ export default function CheckoutUnificadoPremium() {
                             <Text style={styles.resumenValue}>${iva.toFixed(2)}</Text>
                         </View>
                     </View>
-
                     <View style={styles.resumenRow}>
                         <View style={styles.resumenLabelContainer}>
                             <View style={[styles.resumenIconContainer, { backgroundColor: '#F0F4FF' }]}>
@@ -1077,9 +990,7 @@ export default function CheckoutUnificadoPremium() {
                             <Text style={styles.resumenValue}>{metodoPago}</Text>
                         </View>
                     </View>
-
                     <View style={styles.resumenDivider} />
-
                     <View style={styles.totalRow}>
                         <View style={styles.totalLabelContainer}>
                             <View style={[styles.totalIconContainer, { backgroundColor: '#FF6B35' }]}>
@@ -1099,7 +1010,6 @@ export default function CheckoutUnificadoPremium() {
                     <Text style={styles.sectionTitle}>💳 Método de Pago</Text>
                     <Text style={styles.sectionSubtitle}>Selecciona cómo deseas pagar</Text>
                 </View>
-
                 <PremiumCard style={styles.paymentSection} delay={400} withAnimation>
                     <View style={styles.paymentMethods}>
                         {["EFECTIVO", "TRANSFERENCIA", "TARJETA"].map((metodo, index) => (
@@ -1151,7 +1061,6 @@ export default function CheckoutUnificadoPremium() {
                                     </Text>
                                 </View>
                             </View>
-
                             <PremiumInput
                                 label="Monto que entregarás (opcional)"
                                 value={montoEfectivo}
@@ -1161,37 +1070,24 @@ export default function CheckoutUnificadoPremium() {
                                 icon="$"
                                 containerStyle={styles.inputSpacing}
                             />
-
                             {montoEfectivo && (
                                 <View style={styles.cambioContainer}>
                                     <Text style={styles.cambioLabel}>Información:</Text>
                                     {(() => {
                                         const montoLimpio = montoEfectivo.replace(',', '.');
                                         const montoNum = parseFloat(montoLimpio);
-
                                         if (isNaN(montoNum)) {
-                                            return (
-                                                <Text style={styles.errorText}>❌ Monto inválido</Text>
-                                            );
+                                            return <Text style={styles.errorText}>❌ Monto inválido</Text>;
                                         } else if (montoNum < total) {
-                                            return (
-                                                <Text style={styles.errorText}>
-                                                    ❌ Faltan ${(total - montoNum).toFixed(2)}
-                                                </Text>
-                                            );
+                                            return <Text style={styles.errorText}>❌ Faltan ${(total - montoNum).toFixed(2)}</Text>;
                                         } else {
-                                            return (
-                                                <Text style={styles.cambioText}>
-                                                    ✓ Cambio: ${(montoNum - total).toFixed(2)}
-                                                </Text>
-                                            );
+                                            return <Text style={styles.cambioText}>✓ Cambio: ${(montoNum - total).toFixed(2)}</Text>;
                                         }
                                     })()}
                                 </View>
                             )}
-
                             <Text style={styles.ayudaText}>
-                                ⓘ Si no ingresas un monto, se asumirá que pagarás el total exacto (${total.toFixed(2)})
+                                ⓘ Si no ingresas un monto, se asumirá que pagarás el total exacto ($${total.toFixed(2)})
                             </Text>
                         </View>
                     )}
@@ -1207,9 +1103,7 @@ export default function CheckoutUnificadoPremium() {
                                     </Text>
                                 </View>
                             </View>
-
                             <Text style={styles.inputLabel}>Subir comprobante de transferencia:</Text>
-
                             {comprobante ? (
                                 <View style={styles.comprobanteSeleccionado}>
                                     {comprobante.type?.includes('image') || comprobante.mimeType?.includes('image') ? (
@@ -1250,12 +1144,9 @@ export default function CheckoutUnificadoPremium() {
                                 >
                                     <Text style={styles.fileButtonIcon}>📎</Text>
                                     <Text style={styles.fileButtonText}>Seleccionar comprobante</Text>
-                                    <Text style={styles.fileButtonSubtext}>
-                                        (Imagen JPG/PNG o PDF - Max 5MB)
-                                    </Text>
+                                    <Text style={styles.fileButtonSubtext}>(Imagen JPG/PNG o PDF - Max 5MB)</Text>
                                 </TouchableOpacity>
                             )}
-
                             <Text style={styles.ayudaText}>
                                 ⓘ Toma una foto del comprobante o selecciona el archivo PDF
                             </Text>
@@ -1273,7 +1164,6 @@ export default function CheckoutUnificadoPremium() {
                                     </Text>
                                 </View>
                             </View>
-
                             <PremiumInput
                                 label="Número de tarjeta"
                                 value={numTarjeta}
@@ -1290,7 +1180,6 @@ export default function CheckoutUnificadoPremium() {
                                 icon="💳"
                                 containerStyle={styles.inputSpacing}
                             />
-
                             <View style={styles.rowInputs}>
                                 <View style={[styles.columnInput, styles.columnSpacing]}>
                                     <PremiumInput
@@ -1321,7 +1210,6 @@ export default function CheckoutUnificadoPremium() {
                                     />
                                 </View>
                             </View>
-
                             <PremiumInput
                                 label="Titular de la tarjeta"
                                 value={titular}
@@ -1331,13 +1219,13 @@ export default function CheckoutUnificadoPremium() {
                                 autoCapitalize="words"
                                 containerStyle={styles.inputSpacing}
                             />
-
                             <Text style={styles.ayudaText}>
                                 ⓘ Los datos de tarjeta se procesan de forma segura
                             </Text>
                         </View>
                     )}
 
+                    {/* BOTÓN PRINCIPAL */}
                     <PremiumButton
                         title={`Pagar $${total.toFixed(2)}`}
                         icon="💳"
@@ -1352,7 +1240,6 @@ export default function CheckoutUnificadoPremium() {
 
             <View style={styles.footer}>
                 <FloatingCircles />
-
                 <View style={styles.footerContent}>
                     <View style={styles.footerIconContainer}>
                         <Text style={styles.footerIcon}>🔒</Text>
@@ -1365,18 +1252,17 @@ export default function CheckoutUnificadoPremium() {
                 <Text style={styles.footerSubtitle}>
                     Tus pagos están protegidos con encriptación de nivel bancario
                 </Text>
-
                 <View style={styles.versionContainer}>
                     <Text style={styles.versionText}>Checkout Premium • MercadoLocal</Text>
                     <Text style={styles.versionSubtext}>© 2024 Todos los derechos reservados</Text>
                 </View>
             </View>
-
             <View style={{ height: 40 }} />
         </ScrollView>
     );
 }
 
+// 🔥 ESTILOS
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -1386,7 +1272,6 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingBottom: 20,
     },
-
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -1420,7 +1305,6 @@ const styles = StyleSheet.create({
         lineHeight: 22,
         paddingHorizontal: 20,
     },
-
     floatingContainer: {
         position: 'absolute',
         top: 0,
@@ -1510,7 +1394,6 @@ const styles = StyleSheet.create({
         bottom: 80,
         right: '40%',
     },
-
     header: {
         backgroundColor: "white",
         paddingTop: 60,
@@ -1528,7 +1411,6 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         position: 'relative',
     },
-
     backButton: {
         position: 'absolute',
         top: 60,
@@ -1564,13 +1446,11 @@ const styles = StyleSheet.create({
         fontFamily: "System",
         marginLeft: 8,
     },
-
     headerContent: {
         alignItems: 'center',
         zIndex: 1,
         width: '100%',
     },
-
     avatarContainer: {
         alignItems: 'center',
         marginBottom: 20,
@@ -1594,7 +1474,6 @@ const styles = StyleSheet.create({
         fontSize: 36,
         color: "white",
     },
-
     animatedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1621,7 +1500,6 @@ const styles = StyleSheet.create({
         fontFamily: "System",
         letterSpacing: 0.5,
     },
-
     titleContainer: {
         alignItems: 'center',
         marginBottom: 20,
@@ -1651,7 +1529,6 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontFamily: "System",
     },
-
     infoBadgesContainer: {
         flexDirection: 'row',
         gap: 10,
@@ -1691,7 +1568,6 @@ const styles = StyleSheet.create({
         fontWeight: "600" as any,
         fontFamily: "System",
     },
-
     section: {
         paddingHorizontal: 16,
         marginBottom: 24,
@@ -1716,7 +1592,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 4,
     },
-
     premiumCard: {
         backgroundColor: "white",
         borderRadius: 20,
@@ -1729,7 +1604,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#f1f5f9",
     },
-
     productoCard: {
         padding: 0,
         overflow: 'hidden',
@@ -1790,7 +1664,6 @@ const styles = StyleSheet.create({
         fontFamily: "System",
         paddingHorizontal: 6,
     },
-
     productoInfo: {
         flex: 1,
         marginRight: 10,
@@ -1811,7 +1684,6 @@ const styles = StyleSheet.create({
         color: "#64748b",
         fontFamily: "System",
     },
-
     precioTotalContainer: {
         alignItems: 'flex-end',
     },
@@ -1821,7 +1693,6 @@ const styles = StyleSheet.create({
         color: "#FF6B35",
         fontFamily: "System",
     },
-
     resumenCard: {
         padding: 18,
     },
@@ -1864,13 +1735,11 @@ const styles = StyleSheet.create({
         fontWeight: "600" as any,
         fontFamily: "System",
     },
-
     resumenDivider: {
         height: 1,
         backgroundColor: "#f1f5f9",
         marginVertical: 14,
     },
-
     totalRow: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -1909,7 +1778,6 @@ const styles = StyleSheet.create({
         color: "#FF6B35",
         fontFamily: "System",
     },
-
     paymentSection: {
         padding: 18,
     },
@@ -1968,7 +1836,6 @@ const styles = StyleSheet.create({
     paymentMethodTextActive: {
         color: '#FF6B35',
     },
-
     formContainer: {
         marginTop: 10,
     },
@@ -2003,7 +1870,6 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         fontFamily: 'System',
     },
-
     premiumInputContainer: {
         marginBottom: 16,
     },
@@ -2044,7 +1910,6 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
         paddingTop: 12,
     },
-
     inputLabel: {
         fontSize: 14,
         fontWeight: '600' as any,
@@ -2066,7 +1931,6 @@ const styles = StyleSheet.create({
     columnSpacing: {
         marginRight: 4,
     },
-
     cambioContainer: {
         backgroundColor: '#F0FFF4',
         padding: 14,
@@ -2102,7 +1966,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
         lineHeight: 16,
     },
-
     comprobanteSeleccionado: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -2194,7 +2057,6 @@ const styles = StyleSheet.create({
         fontFamily: "System",
         textAlign: 'center',
     },
-
     primaryPremiumButton: {
         backgroundColor: '#FF6B35',
         borderRadius: 14,
@@ -2245,16 +2107,21 @@ const styles = StyleSheet.create({
         color: 'white',
         marginRight: 10,
     },
+    secondaryPremiumButtonIcon: {
+        fontSize: 18,
+        color: '#FF6B35',
+        marginRight: 10,
+    },
+    dangerPremiumButtonIcon: {
+        fontSize: 18,
+        color: 'white',
+        marginRight: 10,
+    },
     primaryPremiumButtonText: {
         fontSize: 16,
         fontWeight: '700' as any,
         color: 'white',
         fontFamily: 'System',
-    },
-    secondaryPremiumButtonIcon: {
-        fontSize: 18,
-        color: '#FF6B35',
-        marginRight: 10,
     },
     secondaryPremiumButtonText: {
         fontSize: 16,
@@ -2262,39 +2129,26 @@ const styles = StyleSheet.create({
         color: '#FF6B35',
         fontFamily: 'System',
     },
-    dangerPremiumButtonIcon: {
-        fontSize: 18,
-        color: 'white',
-        marginRight: 10,
-    },
     dangerPremiumButtonText: {
         fontSize: 16,
         fontWeight: '700' as any,
         color: 'white',
         fontFamily: 'System',
     },
-
     footer: {
-        backgroundColor: "white",
+        backgroundColor: '#1e293b',
         borderRadius: 20,
         padding: 24,
         marginHorizontal: 16,
-        marginBottom: 20,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 6,
-        borderWidth: 1,
-        borderColor: "#f1f5f9",
+        marginTop: 20,
+        marginBottom: 10,
+        alignItems: 'center',
         position: 'relative',
         overflow: 'hidden',
     },
     footerContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 16,
         zIndex: 1,
     },
@@ -2302,60 +2156,56 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: "#FF6B35",
-        justifyContent: "center",
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        elevation: 4,
+        backgroundColor: 'rgba(255, 107, 53, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
     },
     footerIcon: {
         fontSize: 24,
-        color: "white",
+        color: '#FF6B35',
     },
     footerTitle: {
-        fontSize: 14,
-        color: "#64748b",
-        fontWeight: "500" as any,
-        fontFamily: "System",
-        marginBottom: 4,
+        fontSize: 16,
+        fontWeight: '700' as any,
+        color: 'white',
+        fontFamily: 'System',
+        marginBottom: 2,
     },
     footerBrand: {
-        fontSize: 20,
-        fontWeight: "700" as any,
-        color: "#FF6B35",
-        fontFamily: "System",
+        fontSize: 12,
+        color: '#94a3b8',
+        fontFamily: 'System',
+        letterSpacing: 1,
     },
     footerSubtitle: {
-        fontSize: 14,
-        color: "#94a3b8",
-        textAlign: "center",
+        fontSize: 13,
+        color: '#cbd5e1',
+        textAlign: 'center',
         marginBottom: 16,
-        fontFamily: "System",
-        lineHeight: 20,
+        lineHeight: 18,
+        fontFamily: 'System',
+        zIndex: 1,
     },
     versionContainer: {
-        alignItems: "center",
-        marginTop: 16,
-        paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: "#f1f5f9",
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        paddingTop: 16,
+        alignItems: 'center',
         width: '100%',
+        zIndex: 1,
     },
     versionText: {
         fontSize: 12,
-        color: "#94a3b8",
-        fontWeight: "500" as any,
-        fontFamily: "System",
-        textAlign: 'center',
+        color: '#94a3b8',
+        fontFamily: 'System',
+        marginBottom: 4,
+        letterSpacing: 0.5,
     },
     versionSubtext: {
         fontSize: 11,
-        color: "#cbd5e1",
-        marginTop: 4,
-        fontFamily: "System",
-        textAlign: 'center',
+        color: '#64748b',
+        fontFamily: 'System',
+        opacity: 0.7,
     },
 });

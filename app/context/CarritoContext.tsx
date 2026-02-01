@@ -65,28 +65,25 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log("📦 Datos recibidos del backend:", JSON.stringify(data, null, 2));
 
       // 🔥 MAPEAR la respuesta del backend a la estructura esperada por React Native
-      const itemsMapeados = (data.items || []).map((item: any) => {
-        console.log("🔍 Mapeando item:", item);
-        
+      // En cargarCarrito() del CarritoContext.tsx
+      const itemsMapeados = (data.items || data || []).map((item: any) => {
+        console.log("🔍 Item crudo del backend:", item);
+
+        // Asegurar que todos los campos existan
         return {
-          // El backend usa "idItem" pero React Native espera "idCarrito"
-          idCarrito: item.idItem,
-          
-          // El backend devuelve un objeto "producto" anidado
-          idProducto: item.producto?.idProducto || 0,
-          nombreProducto: item.producto?.nombre || "Producto sin nombre",
-          precioProducto: item.producto?.precio || 0,
-          imagenProducto: item.producto?.imagen || "",
-          stockProducto: item.producto?.stock || 0,
-          
-          // La cantidad sí viene directamente
-          cantidad: item.cantidad || 0,
+          idCarrito: item.idItem || item.idCarrito || item.id || Date.now() + Math.random(),
+          idProducto: item.producto?.idProducto || item.idProducto || 0,
+          nombreProducto: item.producto?.nombreProducto || item.producto?.nombre || item.nombre || "Producto sin nombre",
+          precioProducto: parseFloat(item.producto?.precioProducto || item.producto?.precio || item.precio || 0),
+          imagenProducto: item.producto?.imagenProducto || item.producto?.imagen || item.imagen || "",
+          stockProducto: item.producto?.stockProducto || item.producto?.stock || item.stock || 0,
+          cantidad: parseInt(item.cantidad || 1),
         };
       });
 
       console.log("✅ Items mapeados:", JSON.stringify(itemsMapeados, null, 2));
       setItems(itemsMapeados);
-      
+
     } catch (error) {
       console.error("❌ [cargarCarrito] Error:", error);
       setItems([]);
@@ -96,7 +93,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const agregarCarrito = async (idProducto: number, cantidad: number) => {
     try {
       console.log("🎯 [agregarCarrito] Agregando producto:", idProducto, "cantidad:", cantidad);
-      
+
       setLoading(true);
 
       const userStr = await AsyncStorage.getItem("user");
@@ -134,9 +131,9 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // Recargar el carrito para obtener el estado actualizado
       await cargarCarrito();
-      
+
       console.log("✅ [agregarCarrito] Carrito actualizado correctamente");
-      
+
     } catch (error: any) {
       console.error("❌ [agregarCarrito] Error:", error.message);
       throw error;
@@ -148,7 +145,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const actualizarCantidad = async (idCarrito: number, cantidad: number) => {
     try {
       console.log("🔄 [actualizarCantidad] idCarrito:", idCarrito, "cantidad:", cantidad);
-      
+
       const token = await AsyncStorage.getItem("authToken");
       if (!token) throw new Error("No autorizado");
 
@@ -168,7 +165,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log("✅ [actualizarCantidad] Cantidad actualizada");
       await cargarCarrito();
-      
+
     } catch (error) {
       console.error("❌ [actualizarCantidad] Error:", error);
       throw error;
@@ -178,7 +175,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const eliminarItem = async (idCarrito: number) => {
     try {
       console.log("🗑️ [eliminarItem] idCarrito:", idCarrito);
-      
+
       const token = await AsyncStorage.getItem("authToken");
       if (!token) throw new Error("No autorizado");
 
@@ -198,7 +195,7 @@ export const CarritoProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log("✅ [eliminarItem] Item eliminado");
       await cargarCarrito();
-      
+
     } catch (error) {
       console.error("❌ [eliminarItem] Error:", error);
       throw error;
