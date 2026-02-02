@@ -21,11 +21,6 @@ import {
 import { API_CONFIG } from "../../config";
 
 const { width, height } = Dimensions.get('window');
-const isSmallDevice = width < 375;
-const isMediumDevice = width >= 375 && width < 768;
-const isLargeDevice = width >= 768;
-const isTablet = width >= 768 && height < 1000;
-const isLandscape = width > height;
 
 interface Producto {
   idProducto: number;
@@ -48,13 +43,11 @@ interface Pedido {
   iva: number;
   total: number;
   metodoPago?: string;
-  estadoPago?: string; // 🔥 AGREGADO
+  estadoPago?: string;
 }
 
 // 🔥 COMPONENTE DE CÍRCULOS FLOTANTES PREMIUM
 const FloatingCircles = () => {
-  const { width, height } = Dimensions.get('window');
-  
   return (
     <View style={styles.floatingContainer}>
       <View style={[styles.floatingCircle, styles.circle1]} />
@@ -127,7 +120,7 @@ export default function PedidoDetalle() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Estados del formulario de pago
+  // Estados del formulario de pago - SOLO PARA PEDIDOS PENDIENTES
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
   const [comprobante, setComprobante] = useState<any>(null);
@@ -197,7 +190,6 @@ export default function PedidoDetalle() {
       setError(null);
       
       console.log(`📦 Cargando pedido #${id}...`);
-      console.log(`🔑 Token: ${token.substring(0, 20)}...`);
       
       // 🔥 USAR EL ID DIRECTAMENTE
       const pedidoId = id;
@@ -238,7 +230,7 @@ export default function PedidoDetalle() {
         throw new Error("No se encontró el pedido o no tienes permisos");
       }
 
-      // SEGUNDO: Cargar los detalles del pedido - USANDO EL ID ORIGINAL
+      // SEGUNDO: Cargar los detalles del pedido
       let detallesData: DetallePedido[] = [];
       console.log(`🔄 Buscando detalles para pedido #${pedidoId}...`);
       
@@ -278,21 +270,18 @@ export default function PedidoDetalle() {
 
       console.log("📊 Resumen final:");
       console.log("- Pedido:", pedidoData);
+      console.log("- Método de pago:", pedidoData.metodoPago || "No especificado");
+      console.log("- Estado pago:", pedidoData.estadoPago || "No especificado");
+      console.log("- Estado pedido:", pedidoData.estadoPedido);
       console.log("- Detalles encontrados:", detallesData.length);
       
       setPedido(pedidoData);
       setDetalles(detallesData);
       
-      // Si el pedido ya tiene método de pago, establecerlo
-      if (pedidoData.metodoPago && pedidoData.metodoPago !== "PENDIENTE" && !pedidoFinalizado(pedidoData)) {
-        setMetodoPago(pedidoData.metodoPago);
-      }
-      
     } catch (err: any) {
       console.error("❌ ERROR COMPLETO:", err);
       setError(err.message || "Error al cargar el pedido");
       
-      // Mostrar alerta solo si no es error de sesión
       if (!err.message.includes("Sesión")) {
         Alert.alert("Error", "No se pudo cargar el pedido. Verifica tu conexión.");
       }
@@ -302,13 +291,53 @@ export default function PedidoDetalle() {
     }
   };
 
-  // 🔥 FUNCIÓN ACTUALIZADA PARA VERIFICAR SI EL PEDIDO ESTÁ FINALIZADO
-  const pedidoFinalizado = (pedido: Pedido) => {
-    return pedido.estadoPedido === "COMPLETADO" ||
-           pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
-           pedido.estadoPedido === "PROCESANDO" ||
-           pedido.estadoPedido === "ENVIADO" ||
-           (pedido.estadoPago && pedido.estadoPago === "PAGADO");
+  // 🔥 FUNCIÓN CLAVE: DETERMINAR SI DEBE MOSTRAR FORMULARIO DE PAGO
+  const debeMostrarFormularioPago = (): boolean => {
+    if (!pedido) return false;
+    
+    console.log("🔍 ANALIZANDO SI DEBE MOSTRAR PAGO:");
+    console.log("- Estado pedido:", pedido.estadoPedido);
+    console.log("- Método pago:", pedido.metodoPago);
+    console.log("- Estado pago:", pedido.estadoPago);
+    
+    // Estados que indican que YA está pagado o procesado
+    const estadosYaPagados = [
+      "COMPLETADO",
+      "PENDIENTE_VERIFICACION", 
+      "PROCESANDO",
+      "ENVIADO",
+      "ENTREGADO",
+      "CANCELADO"
+    ];
+    
+    // 1. Si el estado es de los ya pagados, NO mostrar
+    if (estadosYaPagados.includes(pedido.estadoPedido)) {
+      console.log("❌ NO mostrar: Estado", pedido.estadoPedido, "ya está pagado/procesado");
+      return false;
+    }
+    
+    // 2. Si ya tiene un método de pago asignado (y no es "PENDIENTE")
+    if (pedido.metodoPago && 
+        pedido.metodoPago !== "PENDIENTE" && 
+        pedido.metodoPago.trim() !== "") {
+      console.log("❌ NO mostrar: Ya tiene método de pago", pedido.metodoPago);
+      return false;
+    }
+    
+    // 3. Si el estado de pago indica que ya fue procesado
+    if (pedido.estadoPago && 
+        pedido.estadoPago !== "PENDIENTE" && 
+        pedido.estadoPago !== "") {
+      console.log("❌ NO mostrar: Estado de pago es", pedido.estadoPago);
+      return false;
+    }
+    
+    // 4. Solo mostrar si está PENDIENTE o CREADO
+    const estadosPermitidos = ["PENDIENTE", "CREADO"];
+    const debeMostrar = estadosPermitidos.includes(pedido.estadoPedido);
+    
+    console.log(debeMostrar ? "✅ SÍ mostrar formulario" : "❌ NO mostrar formulario");
+    return debeMostrar;
   };
 
   const onRefresh = useCallback(() => {
@@ -388,7 +417,7 @@ export default function PedidoDetalle() {
     }
   };
 
-  // 🔥 FUNCIÓN PARA VALIDAR FORMULARIO
+  // 🔥 FUNCIÓN PARA VALIDAR FORMULARIO DE PAGO
   const validarFormulario = (): boolean => {
     if (!pedido) return false;
 
@@ -445,7 +474,7 @@ export default function PedidoDetalle() {
     return true;
   };
 
-  // 🔥 FUNCIÓN PARA FINALIZAR COMPRA
+  // 🔥 FUNCIÓN PARA FINALIZAR COMPRA (SOLO PARA PEDIDOS PENDIENTES)
   const finalizarCompra = async () => {
     if (!pedido || !validarFormulario()) return;
 
@@ -612,7 +641,7 @@ export default function PedidoDetalle() {
             {
               text: "Ver mi pedido",
               onPress: () => {
-                cargarPedido();
+                cargarPedido(); // Recargar para actualizar estado
               },
             },
             {
@@ -631,7 +660,7 @@ export default function PedidoDetalle() {
             {
               text: "Ver detalles",
               onPress: () => {
-                cargarPedido();
+                cargarPedido(); // Recargar para actualizar estado
               },
             },
             {
@@ -642,6 +671,7 @@ export default function PedidoDetalle() {
         );
       }
 
+      // Recargar los datos del pedido para actualizar la UI
       await cargarPedido();
 
     } catch (err: any) {
@@ -660,9 +690,18 @@ export default function PedidoDetalle() {
     }
   };
 
-  // 🔥 FUNCIÓN PARA CANCELAR PEDIDO
+  // 🔥 FUNCIÓN PARA CANCELAR PEDIDO (SOLO PENDIENTES)
   const cancelarPedido = async () => {
     if (!pedido) return;
+
+    // Solo permitir cancelar si está pendiente
+    if (pedido.estadoPedido !== "PENDIENTE" && pedido.estadoPedido !== "CREADO") {
+      Alert.alert(
+        "No se puede cancelar",
+        "Este pedido ya ha sido procesado y no puede ser cancelado."
+      );
+      return;
+    }
 
     const token = await AsyncStorage.getItem("authToken");
     if (!token) {
@@ -708,6 +747,8 @@ export default function PedidoDetalle() {
             },
           ]
         );
+        // Recargar datos
+        cargarPedido();
       } else {
         throw new Error("No se pudo cancelar el pedido");
       }
@@ -792,16 +833,12 @@ export default function PedidoDetalle() {
       icon: "🚚",
       gradient: ["#9B59B6", "#AF7AC5"]
     },
+    CREADO: { 
+      color: "#FF6B35", 
+      icon: "📝",
+      gradient: ["#FF6B35", "#FF8E53"]
+    },
   };
-
-  // 🔥 DETERMINAR SI MOSTRAR FORMULARIO DE PAGO
-  const mostrarFormularioPago = !pedidoFinalizado(pedido) && 
-                                (pedido.estadoPedido === "PENDIENTE" || 
-                                 pedido.estadoPedido === "CREADO");
-
-  console.log("📋 Estado del pedido:", pedido.estadoPedido);
-  console.log("💳 Estado de pago:", pedido.estadoPago);
-  console.log("🎯 Mostrar formulario:", mostrarFormularioPago);
 
   const estadoInfo = estadoColors[pedido.estadoPedido] || { 
     color: "#6B7F69", 
@@ -813,6 +850,10 @@ export default function PedidoDetalle() {
     inputRange: [0, 1],
     outputRange: estadoInfo.gradient
   });
+
+  // 🔥 DETERMINAR SI DEBE MOSTRAR FORMULARIO DE PAGO
+  const mostrarFormPago = debeMostrarFormularioPago();
+  console.log("🎯 RESULTADO FINAL - Mostrar formulario:", mostrarFormPago);
 
   return (
     <ScrollView 
@@ -1057,8 +1098,8 @@ export default function PedidoDetalle() {
         </AnimatedCard>
       </View>
 
-      {/* 🔥 SECCIÓN DE PAGO - SOLO SI EL PEDIDO ESTÁ PENDIENTE */}
-      {mostrarFormularioPago && (
+      {/* 🔥 SECCIÓN DE PAGO - SOLO SI EL PEDIDO ESTÁ PENDIENTE Y NO HA SIDO PAGADO */}
+      {mostrarFormPago ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Completar Pago</Text>
@@ -1374,10 +1415,59 @@ export default function PedidoDetalle() {
             </PremiumCard>
           </AnimatedCard>
         </View>
+      ) : (
+        // 🔥 SECCIÓN DE INFORMACIÓN DE PAGO (SI YA ESTÁ PAGADO)
+        pedido.metodoPago && pedido.metodoPago !== "PENDIENTE" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Información de Pago</Text>
+              <Text style={styles.sectionSubtitle}>Detalles del pago realizado</Text>
+              <View style={styles.sectionUnderline} />
+            </View>
+            
+            <AnimatedCard delay={300}>
+              <PremiumCard style={styles.infoPagoCard}>
+                <View style={styles.infoPagoContent}>
+                  <View style={styles.infoPagoRow}>
+                    <View style={styles.infoPagoIconContainer}>
+                      <Text style={styles.infoPagoIcon}>
+                        {pedido.metodoPago === "EFECTIVO" && "💵"}
+                        {pedido.metodoPago === "TRANSFERENCIA" && "🏦"}
+                        {pedido.metodoPago === "TARJETA" && "💳"}
+                      </Text>
+                    </View>
+                    <View style={styles.infoPagoTexts}>
+                      <Text style={styles.infoPagoLabel}>Método de pago:</Text>
+                      <Text style={styles.infoPagoValue}>{pedido.metodoPago}</Text>
+                    </View>
+                  </View>
+                  
+                  {pedido.estadoPago && (
+                    <View style={styles.infoPagoRow}>
+                      <View style={styles.infoPagoIconContainer}>
+                        <Text style={styles.infoPagoIcon}>✅</Text>
+                      </View>
+                      <View style={styles.infoPagoTexts}>
+                        <Text style={styles.infoPagoLabel}>Estado del pago:</Text>
+                        <Text style={styles.infoPagoValue}>{pedido.estadoPago}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  <View style={styles.infoPagoMensaje}>
+                    <Text style={styles.infoPagoMensajeText}>
+                      ✅ Este pedido ya ha sido pagado. Puedes seguir su estado en esta pantalla.
+                    </Text>
+                  </View>
+                </View>
+              </PremiumCard>
+            </AnimatedCard>
+          </View>
+        )
       )}
 
       {/* 🔥 BOTÓN CANCELAR - SOLO SI ESTÁ PENDIENTE */}
-      {mostrarFormularioPago && (
+      {mostrarFormPago && (
         <AnimatedCard delay={600}>
           <TouchableOpacity
             style={styles.cancelarButton}
@@ -1405,7 +1495,7 @@ export default function PedidoDetalle() {
           </View>
         </View>
         <Text style={styles.footerSubtitle}>
-          {mostrarFormularioPago
+          {mostrarFormPago
             ? "Tus pagos están protegidos con encriptación de nivel bancario"
             : `Tu pedido #${pedido.idPedido} está ${pedido.estadoPedido.toLowerCase()}`
           }
@@ -1432,7 +1522,7 @@ export default function PedidoDetalle() {
   );
 }
 
-// 🔥 ESTILOS (continuación en siguiente mensaje debido al límite de caracteres)
+// 🔥 ESTILOS
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -2541,6 +2631,62 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#E74C3C',
     fontFamily: 'System',
+  },
+  // Estilos para la sección de información de pago (ya pagado)
+  infoPagoCard: {
+    padding: 24,
+  },
+  infoPagoContent: {
+    padding: 10,
+  },
+  infoPagoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingVertical: 10,
+  },
+  infoPagoIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F0F9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: '#E0F2FE',
+  },
+  infoPagoIcon: {
+    fontSize: 24,
+    color: '#0369A1',
+  },
+  infoPagoTexts: {
+    flex: 1,
+  },
+  infoPagoLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  infoPagoValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  infoPagoMensaje: {
+    backgroundColor: '#F0FFF4',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  infoPagoMensajeText: {
+    fontSize: 14,
+    color: '#166534',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   footer: {
     backgroundColor: "white",
