@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MercadoLocal-IA",
-    "slug": "MercadoLocal-IA",
+    "name": "mercadolocalia",
+    "slug": "mercadolocalia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -63,7 +63,8 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
