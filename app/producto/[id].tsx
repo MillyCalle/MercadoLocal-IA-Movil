@@ -67,12 +67,11 @@ export default function ProductoDetalle() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { agregarCarrito: agregarAlCarritoContext } = useCarrito();
-  const { agregarFavorito, favoritos } = useFavoritos();
+  const { agregarFavorito, favoritos, esFavorito: esFavoritoContext } = useFavoritos();
 
   const [producto, setProducto] = useState<Producto | null>(null);
   const [loading, setLoading] = useState(true);
   const [cantidad, setCantidad] = useState(1);
-  const [menuVendedor, setMenuVendedor] = useState(false);
   const [guardandoFavorito, setGuardandoFavorito] = useState(false);
   
   // Modales
@@ -91,7 +90,7 @@ export default function ProductoDetalle() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Verificar si el producto está en favoritos usando el contexto
-  const esFavorito = producto ? favoritos.some(fav => fav.idProducto === producto.idProducto) : false;
+  const esFavorito = producto ? esFavoritoContext(producto.idProducto) : false;
 
   useEffect(() => {
     cargarProducto();
@@ -222,27 +221,7 @@ export default function ProductoDetalle() {
         return;
       }
 
-      // 2. PARSEAR USUARIO CORRECTAMENTE
-      let user;
-      try {
-        user = JSON.parse(userStr);
-      } catch (parseError) {
-        console.error("Error parseando usuario:", parseError);
-        Alert.alert("Error", "Error en los datos del usuario");
-        setGuardandoFavorito(false);
-        return;
-      }
-      
-      // 3. USAR idConsumidor (como en web) O idUsuario como fallback
-      const idConsumidor = user.idConsumidor || user.idUsuario;
-      
-      if (!idConsumidor) {
-        Alert.alert("Error", "No se pudo obtener la información del usuario");
-        setGuardandoFavorito(false);
-        return;
-      }
-
-      // 4. VERIFICAR SI YA ES FAVORITO - MOSTRAR ADVERTENCIA COMO EN WEB
+      // 2. VERIFICAR SI YA ES FAVORITO - MOSTRAR ADVERTENCIA COMO EN WEB
       if (esFavorito) {
         Alert.alert(
           "Producto ya en favoritos",
@@ -254,59 +233,20 @@ export default function ProductoDetalle() {
         return;
       }
 
-      // 5. AGREGAR AL CONTEXTO LOCAL
-      agregarFavorito(producto.idProducto);
-      
-      // 6. HACER PETICIÓN AL BACKEND
+      // 3. USAR LA FUNCIÓN DEL CONTEXTO QUE YA VERIFICA DUPLICADOS
       try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/favoritos/agregar`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            idConsumidor: idConsumidor,
-            idProducto: producto.idProducto,
-          }),
-        });
-
-        if (!response.ok) {
-          let errorData;
-          try {
-            const responseText = await response.text();
-            try {
-              errorData = JSON.parse(responseText);
-            } catch {
-              errorData = { message: responseText || "Error del servidor" };
-            }
-          } catch {
-            errorData = { message: "Error al leer respuesta del servidor" };
-          }
-          
-          const errorMessage = errorData.message || errorData.error || "Error del servidor";
-          
-          if (typeof errorMessage === 'string' && 
-              (errorMessage.includes("ya existe") || 
-              errorMessage.includes("already") ||
-              errorMessage.includes("duplicate"))) {
-            console.log("Producto ya estaba en favoritos en el servidor:", errorMessage);
-          } else {
-            console.warn("Error del servidor al agregar favorito:", errorMessage);
-          }
-        } else {
-          const responseData = await response.json();
-          console.log("Favorito agregado en el servidor:", responseData);
-        }
-        
+        await agregarFavorito(producto.idProducto);
         Alert.alert("¡Guardado!", "Producto agregado a favoritos");
-      } catch (fetchError: any) {
-        console.error("Error en la petición al servidor:", fetchError.message || fetchError);
-        Alert.alert("Error", "No se pudo conectar con el servidor");
+        
+        // 4. NAVEGAR A FAVORITOS DESPUÉS DE AGREGAR
+        setTimeout(() => {
+          router.push("/(tabs)/Favoritos" as any);
+        }, 500);
+        
+      } catch (error: any) {
+        console.error("Error al agregar favorito:", error);
+        Alert.alert("Error", error.message || "No se pudo agregar a favoritos");
       }
-      
-      // 7. NAVEGAR A FAVORITOS
-      router.push("/(tabs)/Favoritos" as any);
       
     } catch (error) {
       console.error("Error en guardarYIrAFavoritos:", error);
@@ -359,8 +299,6 @@ export default function ProductoDetalle() {
 
   const comprarAhora = async () => {
     try {
-      console.log("🛒 [COMPRAR AHORA] Iniciando...");
-      
       const esVendedor = await verificarSiEsVendedor();
       if (esVendedor) {
         Alert.alert(
@@ -411,7 +349,6 @@ export default function ProductoDetalle() {
       });
 
       if (!confirmacion) {
-        console.log("❌ Usuario canceló la compra");
         return;
       }
 
@@ -426,8 +363,6 @@ export default function ProductoDetalle() {
           }
         ]
       };
-
-      console.log("Enviando compra rápida:", body);
 
       const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
         method: "POST",
@@ -446,7 +381,6 @@ export default function ProductoDetalle() {
       }
 
       const pedido = await response.json();
-      console.log("Pedido creado:", pedido);
 
       Alert.alert("¡Pedido creado!", "Ahora serás redirigido para completar el pago");
       
@@ -581,7 +515,6 @@ export default function ProductoDetalle() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ... (todo el contenido anterior permanece igual) ... */}
         <Animated.View
           style={[
             styles.header,
@@ -1012,7 +945,6 @@ export default function ProductoDetalle() {
         </View>
       </Modal>
 
-      {/* MODAL DE NUEVA RESEÑA - CORREGIDO SIN ESPACIO BLANCO */}
       <Modal 
         visible={showNuevaReseña} 
         transparent 
@@ -1750,7 +1682,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: width < 375 ? 8 : 10,
     marginTop: width < 375 ? 14 : 16,
-    marginBottom: 0, // Eliminado el margen inferior extra
+    marginBottom: 0,
   },
   modalActionsSmall: {
     marginBottom: 0,
