@@ -665,64 +665,98 @@ export default function CheckoutUnificadoPremium() {
 
     // 🔥 FUNCIÓN PRINCIPAL FINALIZAR COMPRA
     const finalizarCompra = async () => {
-        console.log("🚀 Finalizando compra...");
+    console.log("🚀 Finalizando compra...");
 
-        if (!validarFormulario()) {
-            console.log("❌ Validación fallida");
-            return;
-        }
+    if (!validarFormulario()) {
+        console.log("❌ Validación fallida");
+        return;
+    }
 
-        const token = await AsyncStorage.getItem("authToken");
-        const userData = await AsyncStorage.getItem("user");
-        const user = userData ? JSON.parse(userData) : null;
+    const token = await AsyncStorage.getItem("authToken");
+    const userData = await AsyncStorage.getItem("user");
+    const user = userData ? JSON.parse(userData) : null;
 
-        if (!token || !user?.idConsumidor) {
-            Alert.alert("Sesión requerida", "Debes iniciar sesión para realizar la compra", [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Iniciar Sesión", onPress: () => router.push("/login") },
-            ]);
-            return;
-        }
+    if (!token || !user?.idConsumidor) {
+        Alert.alert("Sesión requerida", "Debes iniciar sesión para realizar la compra", [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Iniciar Sesión", onPress: () => router.push("/login") },
+        ]);
+        return;
+    }
 
-        const idConsumidor = user.idConsumidor;
+    const idConsumidor = user.idConsumidor;
+    
+    // ✅ 1. CREAR EL ID DE COMPRA UNIFICADA
+    const idCompraUnificada = `COMPRA-${Date.now()}-${idConsumidor}`;
+    
+    console.log("🆔 ID Compra Unificada generada:", idCompraUnificada);
 
-        // Confirmación
-        const confirmar = await new Promise((resolve) => {
-            Alert.alert(
-                "💳 Confirmar Compra",
-                `💰 Total: $${total.toFixed(2)}\n💳 Método: ${metodoPago}\n📦 Productos: ${items.length}`,
-                [
-                    { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
-                    { text: "✅ Confirmar", onPress: () => resolve(true), style: "default" },
-                ]
-            );
+    // Confirmación
+    const confirmar = await new Promise((resolve) => {
+        Alert.alert(
+            "💳 Confirmar Compra",
+            `💰 Total: $${total.toFixed(2)}\n💳 Método: ${metodoPago}\n📦 Productos: ${items.length}\n🆔 ID: ${idCompraUnificada}`,
+            [
+                { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
+                { text: "✅ Confirmar", onPress: () => resolve(true), style: "default" },
+            ]
+        );
+    });
+
+    if (!confirmar) {
+        console.log("❌ Usuario canceló");
+        return;
+    }
+
+    setProcesando(true);
+
+    try {
+        console.log("🛒 Creando compra unificada...");
+
+        // ✅ 2. USAR EL ENDPOINT CORRECTO CON LA COMPRA UNIFICADA
+        const bodyCheckout = {
+            idConsumidor: idConsumidor,
+            idCompraUnificada: idCompraUnificada, // ✅ ENVIAR EL ID
+        };
+
+        const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/checkout`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify(bodyCheckout),
         });
 
-        if (!confirmar) {
-            console.log("❌ Usuario canceló");
-            return;
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error del servidor: ${response.status} - ${errorText}`);
         }
 
-        setProcesando(true);
+        const data = await response.json();
+        console.log("✅ Compra unificada creada:", data);
 
-        try {
-            console.log("🛒 Creando pedido...");
+        // ✅ 3. PROCESAR PAGO PARA CADA PEDIDO
+        let pedidosCreados = data;
+        
+        if (!Array.isArray(pedidosCreados)) {
+            pedidosCreados = [data]; // Si viene como objeto único
+        }
 
-            // Crear pedido
-            const pedidoCreado = await crearPedidoUnico(token, idConsumidor);
-            console.log("✅ Pedido creado:", pedidoCreado);
+        console.log(`📦 Procesando ${pedidosCreados.length} pedidos...`);
 
-            // Obtener ID del pedido
-            let pedidoId = pedidoCreado?.idPedido || pedidoCreado?.id || pedidoCreado?.pedidoId;
-
+        // Procesar pago para cada pedido
+        for (const pedido of pedidosCreados) {
+            const pedidoId = pedido.idPedido || pedido.id;
+            
             if (!pedidoId) {
-                console.log("⚠️ No se obtuvo ID, generando temporal");
-                pedidoId = `TEMP-${Date.now()}-${idConsumidor}`;
+                console.log("⚠️ Pedido sin ID, saltando...");
+                continue;
             }
 
             console.log(`💰 Procesando pago para pedido #${pedidoId}...`);
 
-            // Preparar datos de pago
+            // Preparar datos de pago (igual que antes)
             let bodyPago;
             let headers: any = {
                 Authorization: `Bearer ${token}`,
@@ -764,91 +798,78 @@ export default function CheckoutUnificadoPremium() {
                 bodyPago = formData;
             }
 
-            // Intentar procesar pago (solo si no es temporal)
-            if (!pedidoId.toString().startsWith('TEMP-')) {
-                console.log(`🔗 Enviando pago...`);
-
-                try {
-                    const responsePago = await fetch(
-                        `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedidoId}`,
-                        {
-                            method: "PUT",
-                            headers: headers,
-                            body: bodyPago,
-                        }
-                    );
-
-                    if (!responsePago.ok) {
-                        const errorText = await responsePago.text();
-                        console.log("⚠️ Pago no procesado:", errorText);
-                    } else {
-                        console.log("✅ Pago procesado");
-                    }
-                } catch (pagoError) {
-                    console.log("⚠️ Error en pago:", pagoError);
-                }
-            } else {
-                console.log("ℹ️ Pedido temporal, omitiendo pago backend");
-            }
-
-            // Limpiar carrito
-            console.log("🗑️ Limpiando carrito...");
             try {
-                const itemsParaLimpiar = [...items];
-                for (const item of itemsParaLimpiar) {
-                    if (item.idCarrito) {
-                        // Convertir a número si es string
-                        const id = Number(item.idCarrito);
-                        if (!isNaN(id)) {
-                            await eliminarItem(id);
-                        }
+                const responsePago = await fetch(
+                    `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedidoId}`,
+                    {
+                        method: "PUT",
+                        headers: headers,
+                        body: bodyPago,
+                    }
+                );
+
+                if (!responsePago.ok) {
+                    const errorText = await responsePago.text();
+                    console.log(`⚠️ Pago no procesado para pedido #${pedidoId}:`, errorText);
+                } else {
+                    console.log(`✅ Pago procesado para pedido #${pedidoId}`);
+                }
+            } catch (pagoError) {
+                console.log(`⚠️ Error en pago del pedido #${pedidoId}:`, pagoError);
+            }
+        }
+
+        // ✅ 4. LIMPIAR CARRITO
+        console.log("🗑️ Limpiando carrito...");
+        try {
+            const itemsParaLimpiar = [...items];
+            for (const item of itemsParaLimpiar) {
+                if (item.idCarrito) {
+                    const id = Number(item.idCarrito);
+                    if (!isNaN(id)) {
+                        await eliminarItem(id);
                     }
                 }
-                console.log("✅ Carrito limpiado");
-            } catch (cleanError) {
-                console.log("⚠️ Error limpiando carrito:", cleanError);
             }
-
-            // Mostrar éxito
-            // Mostrar éxito (ENCONTRAR ESTA SECCIÓN EN finalizarCompra)
-            Alert.alert(
-                "🎉 ¡Compra Exitosa!",
-                `Tu compra ha sido procesada correctamente.\n\n` +
-                `📦 Productos: ${items.length}\n` +
-                `💰 Total: $${total.toFixed(2)}\n` +
-                `💳 Método: ${metodoPago}`,
-                [
-                    {
-                        text: "📦 Ver Pedidos",
-                        onPress: () => {
-                            // Guardar el ID del pedido para usarlo en PedidoDetalle
-                            if (pedidoId) {
-                                AsyncStorage.setItem('ultimoPedidoId', pedidoId.toString());
-                            }
-                            // Navegar a la pantalla principal de pedidos en lugar de detalle
-                            router.push("/consumidor/Pedido");
-                        }
-                    },
-                    {
-                        text: "🏠 Continuar",
-                        onPress: () => router.push("/(tabs)/explorar"),
-                        style: "cancel"
-                    }
-                ]
-            );
-
-        } catch (err: any) {
-            console.error("❌ ERROR:", err);
-
-            Alert.alert(
-                "Error en la compra",
-                err.message || "No se pudo completar la compra. Intenta nuevamente."
-            );
-
-        } finally {
-            setProcesando(false);
+            console.log("✅ Carrito limpiado");
+        } catch (cleanError) {
+            console.log("⚠️ Error limpiando carrito:", cleanError);
         }
-    };
+
+        // ✅ 5. REDIRIGIR A MI COMPRA UNIFICADA (¡CORRECCIÓN!)
+        Alert.alert(
+            "🎉 ¡Compra Exitosa!",
+            `Tu compra ha sido procesada correctamente.\n\n` +
+            `📦 Productos: ${items.length}\n` +
+            `💰 Total: $${total.toFixed(2)}\n` +
+            `💳 Método: ${metodoPago}\n` +
+            `🆔 Compra: ${idCompraUnificada}`,
+            [
+                {
+                    text: "📦 Ver Compra Unificada",
+                    onPress: () => {
+                        // ✅ ¡Aquí está la corrección! Navegar a MiCompraUnificada
+                        router.push(`/consumidor/MiCompraUnificada?idCompra=${idCompraUnificada}`);
+                    }
+                },
+                {
+                    text: "🏠 Continuar",
+                    onPress: () => router.push("/(tabs)/explorar"),
+                    style: "cancel"
+                }
+            ]
+        );
+
+    } catch (err: any) {
+        console.error("❌ ERROR:", err);
+        Alert.alert(
+            "Error en la compra",
+            err.message || "No se pudo completar la compra. Intenta nuevamente."
+        );
+    } finally {
+        setProcesando(false);
+    }
+};
 
     if (!items || items.length === 0) {
         return (
