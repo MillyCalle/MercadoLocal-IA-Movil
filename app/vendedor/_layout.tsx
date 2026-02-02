@@ -85,11 +85,11 @@ export default function VendedorLayout() {
         }}
       />
       
-      {/* 2. PRODUCTOS */}
+      {/* 2. PRODUCTOS - SOLO VISUALIZACIÓN */}
       <Tabs.Screen
         name="gestionar-productos"
         options={{
-          title: 'Productos',
+          title: 'Mis Productos',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cube-outline" size={size} color={color} />
           ),
@@ -129,13 +129,17 @@ export default function VendedorLayout() {
         }}
       />
 
-      {/* RUTAS QUE NO DEBEN APARECER EN LOS TABS (OCULTAS) */}
+      {/* ⭐⭐ OCULTAR TODAS LAS FUNCIONES DE EDICIÓN Y AGREGADO ⭐⭐ */}
+      
+      {/* OCULTAR AGREGAR PRODUCTO */}
       <Tabs.Screen
         name="agregar-producto"
         options={{
           href: null, // No aparece en tabs
         }}
       />
+      
+      {/* OCULTAR EDITAR PRODUCTO */}
       <Tabs.Screen
         name="editar-producto"
         options={{
@@ -173,7 +177,7 @@ export default function VendedorLayout() {
         }}
       />
       
-      {/* ⭐ OCULTAR LA CARPETA PEDIDO COMPLETA (DETALLE DE PEDIDOS) ⭐ */}
+      {/* OCULTAR LA CARPETA PEDIDO COMPLETA (DETALLE DE PEDIDOS) */}
       <Tabs.Screen
         name="pedido"
         options={{
@@ -191,6 +195,28 @@ export default function VendedorLayout() {
       
       <Tabs.Screen
         name="VendedorPerfilPublic"
+        options={{
+          href: null,
+        }}
+      />
+      
+      {/* ⭐ NUEVO: OCULTAR CUALQUIER OTRA RUTA DE EDICIÓN ⭐ */}
+      <Tabs.Screen
+        name="producto"
+        options={{
+          href: null, // Oculta detalles de producto
+        }}
+      />
+      
+      <Tabs.Screen
+        name="detalle-producto"
+        options={{
+          href: null,
+        }}
+      />
+      
+      <Tabs.Screen
+        name="ProductoDetalle"
         options={{
           href: null,
         }}

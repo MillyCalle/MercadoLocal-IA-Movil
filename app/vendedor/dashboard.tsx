@@ -398,20 +398,7 @@ export default function DashboardVendedor() {
             style={styles.actionsScroll}
             contentContainerStyle={styles.actionsContainer}
           >
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: '#FF6B35' }]}
-              onPress={() => navigateTo("agregar-producto")}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionIconContainer}>
-                <Ionicons name="add-circle-outline" size={32} color="white" />
-              </View>
-              <Text style={styles.actionTitle}>Agregar Producto</Text>
-              <Text style={styles.actionDescription}>
-                Añade nuevos productos a tu catálogo
-              </Text>
-              <Text style={styles.actionArrow}>→</Text>
-            </TouchableOpacity>
+
             
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: '#3498DB' }]}
