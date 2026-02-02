@@ -33,6 +33,7 @@ export default function Favoritos() {
     loadingFavoritos, 
     cargarFavoritos, 
     eliminarFavorito,
+    vaciarFavoritos, // IMPORTANTE: Importamos la nueva función
     sincronizarConBackend,
     estaSincronizado
   } = useFavoritos();
@@ -62,7 +63,7 @@ export default function Favoritos() {
     }
   };
 
-  const handleEliminarFavorito = (idFavorito: number, nombreProducto: string) => {
+  const handleEliminarFavorito = async (idFavorito: number, nombreProducto: string) => {
     Alert.alert(
       "Eliminar Favorito",
       `¿Estás seguro de que deseas eliminar "${nombreProducto}" de tus favoritos?`,
@@ -75,8 +76,8 @@ export default function Favoritos() {
             try {
               await eliminarFavorito(idFavorito);
               Alert.alert("✅ Eliminado", "Producto eliminado de favoritos");
-            } catch (error) {
-              Alert.alert("Error", "No se pudo eliminar el favorito");
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "No se pudo eliminar el favorito");
             }
           },
         },
@@ -85,18 +86,46 @@ export default function Favoritos() {
   };
 
   const handleVaciarFavoritos = () => {
-    if (favoritos.length === 0) return;
+    if (favoritos.length === 0) {
+      Alert.alert("Favoritos vacíos", "No tienes favoritos para vaciar");
+      return;
+    }
 
     Alert.alert(
-      "Vaciar Favoritos",
-      "¿Estás seguro de que deseas vaciar todos tus favoritos?",
+      "⚠️ Vaciar Todos los Favoritos",
+      `¿Estás seguro de que deseas eliminar TODOS los ${favoritos.length} productos de tus favoritos?\n\nEsta acción no se puede deshacer.`,
       [
-        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Cancelar", 
+          style: "cancel" 
+        },
         {
-          text: "Vaciar",
+          text: "Vaciar Todo",
           style: "destructive",
-          onPress: () => {
-            Alert.alert("Atención", "Para vaciar favoritos, elimina uno por uno");
+          onPress: async () => {
+            try {
+              // Mostrar estado de carga
+              setRefreshing(true);
+              
+              // Llamar a la función para vaciar todos los favoritos
+              await vaciarFavoritos();
+              
+              // Mostrar confirmación
+              Alert.alert(
+                "✅ Favoritos Vacíos", 
+                "Todos los productos han sido eliminados de tus favoritos",
+                [{ text: "Aceptar" }]
+              );
+              
+            } catch (error: any) {
+              console.error("Error al vaciar favoritos:", error);
+              Alert.alert(
+                "Error", 
+                error.message || "No se pudieron vaciar todos los favoritos"
+              );
+            } finally {
+              setRefreshing(false);
+            }
           },
         },
       ]
@@ -232,17 +261,22 @@ export default function Favoritos() {
             </View>
             {favoritos.length > 0 && (
               <TouchableOpacity
-                style={styles.vaciarButton}
+                style={[styles.vaciarButton, refreshing && styles.vaciarButtonDisabled]}
                 onPress={handleVaciarFavoritos}
+                disabled={refreshing}
               >
-                <Text style={styles.vaciarButtonText}>🗑️ Vaciar</Text>
+                {refreshing ? (
+                  <ActivityIndicator size="small" color="#E74C3C" />
+                ) : (
+                  <Text style={styles.vaciarButtonText}>🗑️ Vaciar Todo</Text>
+                )}
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.grid}>
-            {favoritos.map((fav) => (
-              <View key={fav.idFavorito} style={styles.card}>
+            {favoritos.map((fav, index) => (
+              <View key={`${fav.idFavorito}-${index}`} style={styles.card}>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleEliminarFavorito(fav.idFavorito, fav.nombreProducto)}
@@ -561,6 +595,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E74C3C",
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  vaciarButtonDisabled: {
+    opacity: 0.7,
   },
   
   vaciarButtonText: {

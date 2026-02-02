@@ -17,8 +17,9 @@ interface FavoritosContextType {
   cargarFavoritos: () => Promise<void>;
   agregarFavorito: (idProducto: number) => Promise<void>;
   eliminarFavorito: (idFavorito: number) => Promise<void>;
+  vaciarFavoritos: () => Promise<void>; // NUEVA FUNCIÓN
   esFavorito: (idProducto: number) => boolean;
-  sincronizarConBackend: () => Promise<boolean>; // CAMBIADO a retornar boolean
+  sincronizarConBackend: () => Promise<boolean>;
   limpiarFavoritosLocales: () => Promise<void>;
 }
 
@@ -27,7 +28,7 @@ const FavoritosContext = createContext<FavoritosContextType | undefined>(undefin
 export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
   const [loadingFavoritos, setLoadingFavoritos] = useState(true);
-  const [estaSincronizado, setEstaSincronizado] = useState(true); // NUEVO ESTADO
+  const [estaSincronizado, setEstaSincronizado] = useState(true);
 
   useEffect(() => {
     cargarFavoritos();
@@ -49,7 +50,7 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const user = JSON.parse(userStr);
-      const idConsumidor = user.idConsumidor;
+      const idConsumidor = user.idConsumidor || user.idUsuario;
 
       console.log("🔍 Cargando favoritos para consumidor:", idConsumidor);
 
@@ -80,7 +81,6 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  // CAMBIADO: Ahora retorna boolean
   const sincronizarConBackend = async (): Promise<boolean> => {
     try {
       setLoadingFavoritos(true);
@@ -95,7 +95,7 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const user = JSON.parse(userStr);
-      const idConsumidor = user.idConsumidor;
+      const idConsumidor = user.idConsumidor || user.idUsuario;
 
       console.log("🔄 Sincronizando favoritos...");
 
@@ -127,6 +127,12 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const agregarFavorito = async (idProducto: number) => {
     try {
+      // VERIFICAR PRIMERO SI YA ES FAVORITO
+      if (esFavorito(idProducto)) {
+        console.log("ℹ️ Producto ya está en favoritos:", idProducto);
+        return;
+      }
+
       const userStr = await AsyncStorage.getItem("user");
       const token = await AsyncStorage.getItem("authToken");
 
@@ -135,7 +141,7 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const user = JSON.parse(userStr);
-      const idConsumidor = user.idConsumidor;
+      const idConsumidor = user.idConsumidor || user.idUsuario;
 
       console.log("💚 Agregando producto a favoritos:", idProducto);
 
@@ -156,11 +162,18 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (!response.ok) {
         const errorText = await response.text();
+        
+        if (errorText.includes("ya existe") || errorText.includes("duplicate") || errorText.includes("already")) {
+          console.log("ℹ️ Producto ya estaba en favoritos en el servidor");
+          await cargarFavoritos();
+          return;
+        }
+        
         console.error("❌ Error al agregar favorito:", errorText);
         throw new Error("Error al agregar a favoritos");
       }
 
-      console.log("✅ Favorito agregado");
+      console.log("✅ Favorito agregado exitosamente");
       await cargarFavoritos();
       
     } catch (error: any) {
@@ -194,11 +207,66 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       console.log("✅ Favorito eliminado");
-      await cargarFavoritos();
+      setFavoritos(prev => prev.filter(f => f.idFavorito !== idFavorito));
       
     } catch (error: any) {
       console.error("❌ [eliminarFavorito] Error:", error.message);
       throw error;
+    }
+  };
+
+  // NUEVA FUNCIÓN: Vaciar todos los favoritos
+  const vaciarFavoritos = async (): Promise<void> => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const userStr = await AsyncStorage.getItem("user");
+
+      console.log("🗑️🗑️🗑️ Vaciando TODOS los favoritos...");
+
+      // Limpiar estado local inmediatamente para mejor UX
+      setFavoritos([]);
+      setEstaSincronizado(false);
+
+      // Si el usuario está autenticado, vaciar también en el backend
+      if (token && userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          const idConsumidor = user.idConsumidor || user.idUsuario;
+
+          console.log(`Eliminando favoritos del usuario ${idConsumidor} en backend...`);
+
+          // Opción 1: Eliminar uno por uno (si no hay endpoint para vaciar todo)
+          for (const fav of favoritos) {
+            try {
+              await fetch(
+                `${API_CONFIG.BASE_URL}/favoritos/eliminar/${fav.idFavorito}`,
+                {
+                  method: "DELETE",
+                  headers: { Authorization: `Bearer ${token}` },
+                }
+              );
+              console.log(`Eliminado favorito: ${fav.idFavorito}`);
+            } catch (error) {
+              console.error(`Error eliminando favorito ${fav.idFavorito}:`, error);
+              // Continuamos con los siguientes
+            }
+          }
+
+          console.log("✅ Todos los favoritos eliminados del backend");
+
+        } catch (backendError) {
+          console.error("Error al vaciar favoritos en backend:", backendError);
+          // El estado local ya está vacío, así que continuamos
+        }
+      } else {
+        console.log("Usuario no autenticado, solo se vacían favoritos locales");
+      }
+
+      console.log("✅✅✅ Favoritos completamente vaciados");
+
+    } catch (error) {
+      console.error("❌❌❌ Error al vaciar favoritos:", error);
+      throw new Error("No se pudieron vaciar todos los favoritos");
     }
   };
 
@@ -220,6 +288,7 @@ export const FavoritosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         cargarFavoritos,
         agregarFavorito,
         eliminarFavorito,
+        vaciarFavoritos, // Exportamos la nueva función
         esFavorito,
         sincronizarConBackend,
         limpiarFavoritosLocales,
