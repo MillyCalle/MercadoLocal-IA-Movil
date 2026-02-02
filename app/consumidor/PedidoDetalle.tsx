@@ -20,6 +20,13 @@ import {
 } from "react-native";
 import { API_CONFIG } from "../../config";
 
+const { width, height } = Dimensions.get('window');
+const isSmallDevice = width < 375;
+const isMediumDevice = width >= 375 && width < 768;
+const isLargeDevice = width >= 768;
+const isTablet = width >= 768 && height < 1000;
+const isLandscape = width > height;
+
 interface Producto {
   idProducto: number;
   nombreProducto: string;
@@ -41,6 +48,7 @@ interface Pedido {
   iva: number;
   total: number;
   metodoPago?: string;
+  estadoPago?: string; // 🔥 AGREGADO
 }
 
 // 🔥 COMPONENTE DE CÍRCULOS FLOTANTES PREMIUM
@@ -49,19 +57,10 @@ const FloatingCircles = () => {
   
   return (
     <View style={styles.floatingContainer}>
-      {/* Círculo grande naranja */}
       <View style={[styles.floatingCircle, styles.circle1]} />
-      
-      {/* Círculo mediano azul */}
       <View style={[styles.floatingCircle, styles.circle2]} />
-      
-      {/* Círculo mediano morado */}
       <View style={[styles.floatingCircle, styles.circle3]} />
-      
-      {/* Círculo pequeño verde */}
       <View style={[styles.floatingCircle, styles.circle4]} />
-      
-      {/* Círculos adicionales para más efecto */}
       <View style={[styles.floatingCircle, styles.circle5]} />
       <View style={[styles.floatingCircle, styles.circle6]} />
     </View>
@@ -111,9 +110,7 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ children, delay = 0 }) => {
 const PremiumCard = ({ children, style }: { children: React.ReactNode, style?: any }) => {
   return (
     <View style={[styles.premiumCard, style]}>
-      {/* Efecto de brillo */}
       <View style={styles.cardGlow} />
-      {/* Sombra interna */}
       <View style={styles.cardInnerShadow} />
       {children}
     </View>
@@ -121,7 +118,7 @@ const PremiumCard = ({ children, style }: { children: React.ReactNode, style?: a
 };
 
 export default function PedidoDetalle() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const [pedido, setPedido] = useState<Pedido | null>(null);
@@ -130,7 +127,7 @@ export default function PedidoDetalle() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Estados del formulario de pago - MEJORADOS
+  // Estados del formulario de pago
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
   const [comprobante, setComprobante] = useState<any>(null);
@@ -146,6 +143,7 @@ export default function PedidoDetalle() {
   const badgeColorAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    console.log("🔍 ID del pedido recibido:", id);
     cargarPedido();
     startAnimations();
   }, [id]);
@@ -164,7 +162,6 @@ export default function PedidoDetalle() {
       })
     ]).start();
 
-    // Animación pulsante del badge
     Animated.loop(
       Animated.sequence([
         Animated.timing(badgeColorAnim, {
@@ -181,109 +178,137 @@ export default function PedidoDetalle() {
     ).start();
   };
 
-  // 🔥 FUNCIÓN MEJORADA PARA CARGAR PEDIDO
+  // 🔥 FUNCIÓN PARA CARGAR PEDIDO
   const cargarPedido = async () => {
+    console.log("🔄 INICIANDO CARGA DE PEDIDO");
+    
     const token = await AsyncStorage.getItem("authToken");
     
     if (!token) {
       Alert.alert("Sesión requerida", "Debes iniciar sesión para ver el pedido", [
         { text: "Cancelar", style: "cancel" },
-        { text: "Iniciar Sesión", onPress: () => router.push("/login" as any) },
+        { text: "Iniciar Sesión", onPress: () => router.push("/login") },
       ]);
       return;
     }
 
     try {
       setLoading(true);
+      setError(null);
       
-      console.log(`🔄 Cargando pedido #${id}...`);
+      console.log(`📦 Cargando pedido #${id}...`);
+      console.log(`🔑 Token: ${token.substring(0, 20)}...`);
       
-      // Intentar diferentes endpoints
-      const endpoints = [
-        `${API_CONFIG.BASE_URL}/pedidos/${id}`,
-        `${API_CONFIG.BASE_URL}/pedido/${id}`,
-        `${API_CONFIG.BASE_URL}/pedidos/detalle/${id}`
+      // 🔥 USAR EL ID DIRECTAMENTE
+      const pedidoId = id;
+      
+      // PRIMERO: Cargar el pedido principal
+      let pedidoData = null;
+      const pedidoEndpoints = [
+        `${API_CONFIG.BASE_URL}/pedidos/${pedidoId}`,
+        `${API_CONFIG.BASE_URL}/pedido/${pedidoId}`,
+        `${API_CONFIG.BASE_URL}/pedidos/detalle/${pedidoId}`
       ];
 
-      let pedidoData = null;
-      let detallesData = [];
-
-      // Buscar pedido
-      for (const endpoint of endpoints) {
+      for (const endpoint of pedidoEndpoints) {
         try {
-          const resPedido = await fetch(endpoint, {
+          console.log(`🔗 Intentando pedido en: ${endpoint}`);
+          const res = await fetch(endpoint, {
             headers: { 
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
           });
 
-          if (resPedido.ok) {
-            pedidoData = await resPedido.json();
-            console.log("✅ Pedido cargado desde:", endpoint);
+          console.log(`📊 Status: ${res.status}`);
+          
+          if (res.ok) {
+            pedidoData = await res.json();
+            console.log("✅ Pedido cargado:", pedidoData);
             break;
+          } else if (res.status === 404) {
+            console.log(`❌ 404 en ${endpoint}`);
           }
         } catch (error) {
-          console.log(`❌ Error en endpoint ${endpoint}:`, error);
+          console.error(`❌ Error en ${endpoint}:`, error);
         }
       }
 
       if (!pedidoData) {
-        throw new Error("No se pudo cargar el pedido desde ningún endpoint");
+        throw new Error("No se encontró el pedido o no tienes permisos");
       }
 
-      // Cargar detalles del pedido
-      try {
-        const resDetalles = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedidoData.idPedido}/detalles`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-        });
+      // SEGUNDO: Cargar los detalles del pedido - USANDO EL ID ORIGINAL
+      let detallesData: DetallePedido[] = [];
+      console.log(`🔄 Buscando detalles para pedido #${pedidoId}...`);
+      
+      const detallesEndpoints = [
+        `${API_CONFIG.BASE_URL}/pedidos/${pedidoId}/detalles`,
+        `${API_CONFIG.BASE_URL}/pedido/${pedidoId}/detalles`,
+        `${API_CONFIG.BASE_URL}/pedidos/detalles/${pedidoId}`,
+        `${API_CONFIG.BASE_URL}/pedidos/${pedidoId}/items`,
+      ];
 
-        if (resDetalles.ok) {
-          detallesData = await resDetalles.json();
-          console.log("✅ Detalles cargados:", detallesData.length, "productos");
-        } else {
-          // Si no hay endpoint de detalles, intentar obtenerlos de otra forma
-          const detallesAlternativo = await fetch(`${API_CONFIG.BASE_URL}/pedidos/${pedidoData.idPedido}/items`, {
+      for (const endpoint of detallesEndpoints) {
+        try {
+          console.log(`🔗 Intentando detalles en: ${endpoint}`);
+          const res = await fetch(endpoint, {
             headers: { 
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
           });
+
+          console.log(`📊 Status detalles: ${res.status}`);
           
-          if (detallesAlternativo.ok) {
-            detallesData = await detallesAlternativo.json();
+          if (res.ok) {
+            const data = await res.json();
+            detallesData = Array.isArray(data) ? data : [];
+            console.log(`✅ ${detallesData.length} detalles cargados`);
+            break;
+          } else if (res.status === 404) {
+            console.log(`❌ 404 detalles en ${endpoint}`);
+          } else if (res.status === 401) {
+            throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
           }
+        } catch (error) {
+          console.error(`❌ Error detalles en ${endpoint}:`, error);
         }
-      } catch (detallesError) {
-        console.log("⚠️ No se pudieron cargar los detalles:", detallesError);
-        // Continuar sin detalles si hay error
       }
 
+      console.log("📊 Resumen final:");
+      console.log("- Pedido:", pedidoData);
+      console.log("- Detalles encontrados:", detallesData.length);
+      
       setPedido(pedidoData);
-      setDetalles(detallesData || []);
+      setDetalles(detallesData);
       
       // Si el pedido ya tiene método de pago, establecerlo
-      if (pedidoData.metodoPago && !pedidoFinalizado(pedidoData)) {
+      if (pedidoData.metodoPago && pedidoData.metodoPago !== "PENDIENTE" && !pedidoFinalizado(pedidoData)) {
         setMetodoPago(pedidoData.metodoPago);
       }
       
     } catch (err: any) {
-      console.error("❌ Error completo:", err);
-      setError(err.message || "Error desconocido al cargar el pedido");
+      console.error("❌ ERROR COMPLETO:", err);
+      setError(err.message || "Error al cargar el pedido");
+      
+      // Mostrar alerta solo si no es error de sesión
+      if (!err.message.includes("Sesión")) {
+        Alert.alert("Error", "No se pudo cargar el pedido. Verifica tu conexión.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // 🔥 FUNCIÓN ACTUALIZADA PARA VERIFICAR SI EL PEDIDO ESTÁ FINALIZADO
   const pedidoFinalizado = (pedido: Pedido) => {
     return pedido.estadoPedido === "COMPLETADO" ||
            pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
            pedido.estadoPedido === "PROCESANDO" ||
-           pedido.estadoPedido === "ENVIADO";
+           pedido.estadoPedido === "ENVIADO" ||
+           (pedido.estadoPago && pedido.estadoPago === "PAGADO");
   };
 
   const onRefresh = useCallback(() => {
@@ -291,18 +316,16 @@ export default function PedidoDetalle() {
     cargarPedido();
   }, []);
 
-  // 🔥 FUNCIÓN MEJORADA PARA SELECCIONAR COMPROBANTE
+  // 🔥 FUNCIÓN PARA SELECCIONAR COMPROBANTE
   const seleccionarComprobante = async () => {
     try {
-      // Solicitar permisos para acceder a la galería
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permiso necesario', 'Se necesita acceso a la galería para subir comprobantes');
+        Alert.alert('Permiso necesario', 'Se necesita acceso a la galería');
         return;
       }
 
-      // Mostrar opciones al usuario
       Alert.alert(
         'Seleccionar comprobante',
         '¿Cómo quieres subir el comprobante?',
@@ -365,13 +388,12 @@ export default function PedidoDetalle() {
     }
   };
 
-  // 🔥 FUNCIÓN MEJORADA PARA VALIDAR FORMULARIO
+  // 🔥 FUNCIÓN PARA VALIDAR FORMULARIO
   const validarFormulario = (): boolean => {
     if (!pedido) return false;
 
     if (metodoPago === "EFECTIVO") {
       if (montoEfectivo) {
-        // Convertir coma decimal a punto decimal
         const montoLimpio = montoEfectivo.replace(',', '.');
         const montoNum = parseFloat(montoLimpio);
         
@@ -393,50 +415,29 @@ export default function PedidoDetalle() {
         Alert.alert("Error", "Debes subir el comprobante de transferencia");
         return false;
       }
-      
-      // Validar tamaño máximo (5MB)
-      if (comprobante.fileSize && comprobante.fileSize > 5 * 1024 * 1024) {
-        Alert.alert("Error", "El archivo es muy grande. Máximo 5MB");
-        return false;
-      }
-      
-      // Validar tipo de archivo
-      const tiposPermitidos = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-      const tipoArchivo = comprobante.mimeType || comprobante.type;
-      
-      if (tipoArchivo && !tiposPermitidos.includes(tipoArchivo.toLowerCase())) {
-        Alert.alert("Error", "Solo se permiten imágenes JPG, PNG o PDF");
-        return false;
-      }
+      return true;
     }
 
     if (metodoPago === "TARJETA") {
-      // Limpiar espacios del número de tarjeta
       const tarjetaLimpia = numTarjeta.replace(/\s/g, "");
       
       if (!tarjetaLimpia || tarjetaLimpia.length < 15 || tarjetaLimpia.length > 16) {
-        Alert.alert("Error", "Número de tarjeta inválido (debe tener 15-16 dígitos)");
-        return false;
-      }
-      
-      // Validar algoritmo de Luhn para tarjeta
-      if (!validarTarjetaLuhn(tarjetaLimpia)) {
-        Alert.alert("Error", "Número de tarjeta inválido");
+        Alert.alert("Error", "Número de tarjeta inválido (15-16 dígitos)");
         return false;
       }
       
       if (!cvv || cvv.length < 3 || cvv.length > 4) {
-        Alert.alert("Error", "CVV inválido (debe tener 3-4 dígitos)");
+        Alert.alert("Error", "CVV inválido (3-4 dígitos)");
         return false;
       }
       
-      if (!fechaTarjeta || !validarFechaExpiracion(fechaTarjeta)) {
-        Alert.alert("Error", "Fecha de expiración inválida o vencida");
+      if (!fechaTarjeta || !/^(0[1-9]|1[0-2])\/([0-9]{2})$/.test(fechaTarjeta)) {
+        Alert.alert("Error", "Fecha de expiración inválida (MM/AA)");
         return false;
       }
       
       if (!titular.trim() || titular.length < 3) {
-        Alert.alert("Error", "Nombre del titular requerido (mínimo 3 caracteres)");
+        Alert.alert("Error", "Nombre del titular requerido");
         return false;
       }
     }
@@ -444,58 +445,15 @@ export default function PedidoDetalle() {
     return true;
   };
 
-  // 🔥 FUNCIÓN PARA VALIDAR ALGORITMO DE LUHN
-  const validarTarjetaLuhn = (numero: string): boolean => {
-    let suma = 0;
-    let par = false;
-    
-    for (let i = numero.length - 1; i >= 0; i--) {
-      let digito = parseInt(numero.charAt(i), 10);
-      
-      if (par) {
-        digito *= 2;
-        if (digito > 9) digito -= 9;
-      }
-      
-      suma += digito;
-      par = !par;
-    }
-    
-    return suma % 10 === 0;
-  };
-
-  // 🔥 FUNCIÓN PARA VALIDAR FECHA DE EXPIRACIÓN
-  const validarFechaExpiracion = (fecha: string): boolean => {
-    const regex = /^(0[1-9]|1[0-2])\/([0-9]{2})$/;
-    if (!regex.test(fecha)) return false;
-    
-    const [mes, anio] = fecha.split('/').map(Number);
-    const ahora = new Date();
-    const anioActual = ahora.getFullYear() % 100;
-    const mesActual = ahora.getMonth() + 1;
-    
-    // Validar que no esté vencida
-    if (anio < anioActual) return false;
-    if (anio === anioActual && mes < mesActual) return false;
-    
-    // Validar que no sea más de 10 años en el futuro
-    if (anio > anioActual + 10) return false;
-    
-    return true;
-  };
-
-  // 🔥 FUNCIÓN MEJORADA PARA FINALIZAR COMPRA
+  // 🔥 FUNCIÓN PARA FINALIZAR COMPRA
   const finalizarCompra = async () => {
     if (!pedido || !validarFormulario()) return;
 
     const token = await AsyncStorage.getItem("authToken");
-    const userData = await AsyncStorage.getItem("user");
-    const user = userData ? JSON.parse(userData) : null;
-
     if (!token) {
       Alert.alert("Sesión requerida", "Debes iniciar sesión para realizar el pago", [
         { text: "Cancelar", style: "cancel" },
-        { text: "Iniciar Sesión", onPress: () => router.push("/login" as any) },
+        { text: "Iniciar Sesión", onPress: () => router.push("/login") },
       ]);
       return;
     }
@@ -505,11 +463,10 @@ export default function PedidoDetalle() {
     if (metodoPago === "EFECTIVO") {
       confirmar = await new Promise((resolve) => {
         Alert.alert(
-          "⚠️ IMPORTANTE - Pago en Efectivo",
-          `• Total a pagar: $${pedido.total.toFixed(2).replace('.', ',')}\n` +
+          "⚠️ Pago en Efectivo",
+          `• Total: $${pedido.total.toFixed(2)}\n` +
           `• Pagarás al recibir el pedido\n` +
-          `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
-          `• El vendedor preparará tu pedido de inmediato\n\n` +
+          `• El vendedor preparará tu pedido\n\n` +
           `¿Confirmas tu pedido?`,
           [
             { text: "No", onPress: () => resolve(false), style: "cancel" },
@@ -521,7 +478,7 @@ export default function PedidoDetalle() {
       confirmar = await new Promise((resolve) => {
         Alert.alert(
           "Confirmar pago",
-          `¿Confirmar pago de $${pedido.total.toFixed(2).replace('.', ',')} con ${metodoPago}?\n\n` +
+          `¿Confirmar pago de $${pedido.total.toFixed(2)} con ${metodoPago}?\n\n` +
           `Pedido #${pedido.idPedido}`,
           [
             { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
@@ -536,12 +493,12 @@ export default function PedidoDetalle() {
     setFinalizando(true);
 
     try {
-      console.log("\n💰 INICIANDO PROCESO DE PAGO");
+      console.log("\n💰 PROCESANDO PAGO");
       console.log("📦 Pedido ID:", pedido.idPedido);
-      console.log("💳 Método de pago:", metodoPago);
+      console.log("💳 Método:", metodoPago);
       console.log("💰 Total:", pedido.total);
 
-      // Preparar datos para el pago
+      // Preparar datos
       let body;
       let headers: any = {
         Authorization: `Bearer ${token}`,
@@ -550,7 +507,6 @@ export default function PedidoDetalle() {
       if (metodoPago === "EFECTIVO") {
         headers["Content-Type"] = "application/json";
         
-        // Convertir coma decimal a punto decimal
         let montoFinal = pedido.total;
         if (montoEfectivo) {
           const montoLimpio = montoEfectivo.replace(',', '.');
@@ -566,8 +522,6 @@ export default function PedidoDetalle() {
           montoEfectivo: montoFinal
         });
         
-        console.log("💵 Monto final:", montoFinal);
-        
       } else if (metodoPago === "TRANSFERENCIA") {
         const formData = new FormData();
         formData.append("metodoPago", "TRANSFERENCIA");
@@ -582,8 +536,6 @@ export default function PedidoDetalle() {
             name: fileName,
             type: fileType,
           } as any);
-          
-          console.log("🏦 Archivo adjunto:", fileName);
         }
         body = formData;
         
@@ -595,10 +547,9 @@ export default function PedidoDetalle() {
         formData.append("fechaTarjeta", fechaTarjeta);
         formData.append("titular", titular);
         body = formData;
-        console.log("💳 Datos de tarjeta enviados");
       }
 
-      // Intentar diferentes endpoints para procesar el pago
+      // Intentar diferentes endpoints
       const endpoints = [
         `${API_CONFIG.BASE_URL}/pedidos/finalizar/${pedido.idPedido}`,
         `${API_CONFIG.BASE_URL}/pedidos/${pedido.idPedido}/pagar`,
@@ -610,7 +561,7 @@ export default function PedidoDetalle() {
 
       for (const endpoint of endpoints) {
         try {
-          console.log(`🔗 Intentando endpoint: ${endpoint}`);
+          console.log(`🔗 Intentando: ${endpoint}`);
           
           const res = await fetch(endpoint, {
             method: "PUT",
@@ -619,15 +570,13 @@ export default function PedidoDetalle() {
           });
 
           console.log("📤 Status:", res.status);
-          console.log("📤 OK?", res.ok);
-
+          
           if (res.ok) {
             data = await res.json();
             response = res;
             console.log("✅ Pago procesado en:", endpoint);
             break;
           } else if (res.status === 400 || res.status === 404) {
-            // Intentar con POST si PUT falla
             console.log("🔄 Intentando con POST...");
             const resPost = await fetch(endpoint, {
               method: "POST",
@@ -643,35 +592,33 @@ export default function PedidoDetalle() {
             }
           }
         } catch (error) {
-          console.error(`❌ Error en endpoint ${endpoint}:`, error);
+          console.error(`❌ Error en ${endpoint}:`, error);
         }
       }
 
       if (!response || !data) {
-        throw new Error("No se pudo procesar el pago en ningún endpoint");
+        throw new Error("No se pudo procesar el pago");
       }
 
-      console.log("✅ Pago procesado exitosamente:", data);
+      console.log("✅ Pago exitoso:", data);
 
-      // Mostrar éxito según método de pago
+      // Mostrar éxito
       if (metodoPago === "EFECTIVO") {
         Alert.alert(
           "🎉 ¡Pedido confirmado!",
-          `Tu pedido #${pedido.idPedido} ha sido confirmado.\n` +
-          `Pagarás $${pedido.total.toFixed(2).replace('.', ',')} en efectivo al recibir tu pedido.\n\n` +
-          `El vendedor está preparando tu orden.`,
+          `Pedido #${pedido.idPedido} confirmado.\n` +
+          `Pagarás $${pedido.total.toFixed(2)} en efectivo al recibir.`,
           [
             {
               text: "Ver mi pedido",
               onPress: () => {
-                // Recargar para ver estado actualizado
                 cargarPedido();
               },
             },
             {
               text: "Volver al inicio",
               onPress: () => {
-                router.push("/(tabs)/explorar" as any);
+                router.push("/(tabs)/explorar");
               },
             },
           ]
@@ -679,13 +626,11 @@ export default function PedidoDetalle() {
       } else {
         Alert.alert(
           "🎉 ¡Pago exitoso!",
-          `Tu pago de $${pedido.total.toFixed(2).replace('.', ',')} ha sido procesado correctamente.\n` +
-          `Pedido #${pedido.idPedido}`,
+          `Pago de $${pedido.total.toFixed(2)} procesado correctamente.`,
           [
             {
               text: "Ver detalles",
               onPress: () => {
-                // Recargar para ver estado actualizado
                 cargarPedido();
               },
             },
@@ -697,18 +642,15 @@ export default function PedidoDetalle() {
         );
       }
 
-      // Recargar datos del pedido
       await cargarPedido();
 
     } catch (err: any) {
-      console.error("\n❌ ERROR COMPLETO EN PAGO:");
-      console.error("❌ Mensaje:", err.message);
-      console.error("❌ Stack:", err.stack);
+      console.error("\n❌ ERROR EN PAGO:", err);
       
       Alert.alert(
         "❌ Error al procesar el pago",
         `${err.message || "Error desconocido"}\n\n` +
-        `Por favor, verifica:\n` +
+        `Verifica:\n` +
         `1. Tu conexión a internet\n` +
         `2. Los datos ingresados\n` +
         `3. Intenta nuevamente`
@@ -724,7 +666,7 @@ export default function PedidoDetalle() {
 
     const token = await AsyncStorage.getItem("authToken");
     if (!token) {
-      router.push("/login" as any);
+      router.push("/login");
       return;
     }
 
@@ -852,7 +794,15 @@ export default function PedidoDetalle() {
     },
   };
 
-  const pedidoCompletado = pedidoFinalizado(pedido);
+  // 🔥 DETERMINAR SI MOSTRAR FORMULARIO DE PAGO
+  const mostrarFormularioPago = !pedidoFinalizado(pedido) && 
+                                (pedido.estadoPedido === "PENDIENTE" || 
+                                 pedido.estadoPedido === "CREADO");
+
+  console.log("📋 Estado del pedido:", pedido.estadoPedido);
+  console.log("💳 Estado de pago:", pedido.estadoPago);
+  console.log("🎯 Mostrar formulario:", mostrarFormularioPago);
+
   const estadoInfo = estadoColors[pedido.estadoPedido] || { 
     color: "#6B7F69", 
     icon: "❓",
@@ -878,7 +828,6 @@ export default function PedidoDetalle() {
         />
       }
     >
-      {/* 🔥 HEADER PREMIUM */}
       <Animated.View 
         style={[
           styles.header,
@@ -890,7 +839,6 @@ export default function PedidoDetalle() {
       >
         <FloatingCircles />
         
-        {/* Botón de volver premium */}
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
@@ -904,7 +852,6 @@ export default function PedidoDetalle() {
         </TouchableOpacity>
 
         <View style={styles.headerContent}>
-          {/* Avatar del pedido */}
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, { 
               backgroundColor: estadoInfo.color,
@@ -918,7 +865,6 @@ export default function PedidoDetalle() {
               <View style={styles.avatarShine} />
             </View>
             
-            {/* Badge con gradiente animado */}
             <Animated.View 
               style={[
                 styles.estadoBadge,
@@ -930,14 +876,12 @@ export default function PedidoDetalle() {
             </Animated.View>
           </View>
 
-          {/* Títulos con efecto */}
           <View style={styles.titleContainer}>
             <Text style={styles.headerLabel}>DETALLE DE PEDIDO</Text>
             <View style={styles.titleLine} />
             <Text style={styles.headerTitle}>Pedido #{pedido.idPedido}</Text>
           </View>
           
-          {/* Info badges con efectos */}
           <View style={styles.infoBadgesContainer}>
             <PremiumCard style={styles.infoBadge}>
               <View style={styles.infoBadgeIconContainer}>
@@ -952,7 +896,7 @@ export default function PedidoDetalle() {
               </Text>
             </PremiumCard>
 
-            {pedido.metodoPago && (
+            {pedido.metodoPago && pedido.metodoPago !== "PENDIENTE" && (
               <PremiumCard style={styles.infoBadge}>
                 <View style={styles.infoBadgeIconContainer}>
                   <Text style={styles.infoBadgeIcon}>
@@ -968,7 +912,6 @@ export default function PedidoDetalle() {
         </View>
       </Animated.View>
 
-      {/* 🔥 PRODUCTOS DEL PEDIDO */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Productos en tu pedido</Text>
@@ -989,7 +932,6 @@ export default function PedidoDetalle() {
             {detalles.map((detalle, index) => (
               <AnimatedCard key={detalle.idDetalle || index} delay={100 + (index * 100)}>
                 <View style={styles.productItem}>
-                  {/* Imagen */}
                   <View style={styles.productImageContainer}>
                     {detalle.producto?.imagenProducto ? (
                       <Image
@@ -1006,7 +948,6 @@ export default function PedidoDetalle() {
                     <View style={styles.productImageGlow} />
                   </View>
 
-                  {/* Info del producto */}
                   <View style={styles.productInfo}>
                     <Text style={styles.productName} numberOfLines={2}>
                       {detalle.producto?.nombreProducto || "Producto"}
@@ -1026,7 +967,6 @@ export default function PedidoDetalle() {
                     </View>
                   </View>
 
-                  {/* Precio */}
                   <View style={styles.productPriceContainer}>
                     <Text style={styles.productPriceCurrency}>$</Text>
                     <Text style={styles.productPrice}>{detalle.subtotal.toFixed(2)}</Text>
@@ -1039,7 +979,6 @@ export default function PedidoDetalle() {
         )}
       </View>
 
-      {/* 🔥 RESUMEN DE PAGO */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Resumen de compra</Text>
@@ -1075,7 +1014,7 @@ export default function PedidoDetalle() {
               </View>
             </View>
 
-            {pedido.metodoPago && (
+            {pedido.metodoPago && pedido.metodoPago !== "PENDIENTE" && (
               <View style={styles.paymentRow}>
                 <View style={styles.paymentLabelContainer}>
                   <View style={[styles.paymentIconContainer, { backgroundColor: '#F0F4FF' }]}>
@@ -1093,7 +1032,6 @@ export default function PedidoDetalle() {
               </View>
             )}
 
-            {/* Línea divisora */}
             <View style={styles.paymentDivider}>
               <View style={styles.paymentDividerLine} />
               <View style={styles.paymentDividerDots}>
@@ -1103,7 +1041,6 @@ export default function PedidoDetalle() {
               </View>
             </View>
 
-            {/* Total */}
             <View style={styles.paymentTotalRow}>
               <View style={styles.paymentLabelContainer}>
                 <View style={[styles.paymentIconContainer, styles.paymentTotalIconContainer]}>
@@ -1120,8 +1057,8 @@ export default function PedidoDetalle() {
         </AnimatedCard>
       </View>
 
-      {/* 🔥 SECCIÓN DE PAGO (SOLO SI NO ESTÁ COMPLETADO) */}
-      {!pedidoCompletado && pedido.estadoPedido === "PENDIENTE" && (
+      {/* 🔥 SECCIÓN DE PAGO - SOLO SI EL PEDIDO ESTÁ PENDIENTE */}
+      {mostrarFormularioPago && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Completar Pago</Text>
@@ -1131,7 +1068,6 @@ export default function PedidoDetalle() {
           
           <AnimatedCard delay={300}>
             <PremiumCard style={styles.paymentMethodCard}>
-              {/* Selector de método premium */}
               <View style={styles.paymentMethods}>
                 {["EFECTIVO", "TRANSFERENCIA", "TARJETA"].map((metodo, index) => (
                   <TouchableOpacity
@@ -1142,7 +1078,6 @@ export default function PedidoDetalle() {
                     ]}
                     onPress={() => {
                       setMetodoPago(metodo);
-                      // Limpiar comprobante si cambiamos de método
                       if (metodo !== "TRANSFERENCIA") {
                         setComprobante(null);
                       }
@@ -1177,7 +1112,6 @@ export default function PedidoDetalle() {
                 ))}
               </View>
 
-              {/* Formularios según método de pago */}
               {metodoPago === "EFECTIVO" && (
                 <AnimatedCard delay={400}>
                   <PremiumCard style={styles.formContainer}>
@@ -1203,9 +1137,7 @@ export default function PedidoDetalle() {
                         keyboardType="decimal-pad"
                         value={montoEfectivo}
                         onChangeText={(text) => {
-                          // Permitir números, coma y punto
                           const cleaned = text.replace(/[^0-9,.]/g, '');
-                          // Reemplazar punto por coma si el usuario lo pone
                           const formatted = cleaned.replace('.', ',');
                           setMontoEfectivo(formatted);
                         }}
@@ -1213,7 +1145,6 @@ export default function PedidoDetalle() {
                       <TouchableOpacity 
                         style={styles.sugerenciaButton}
                         onPress={() => {
-                          // Sugerir un monto redondeado
                           const sugerido = Math.ceil(pedido.total) + 1;
                           setMontoEfectivo(sugerido.toFixed(2).replace('.', ','));
                         }}
@@ -1231,11 +1162,11 @@ export default function PedidoDetalle() {
                           
                           if (isNaN(montoNum)) {
                             return (
-                              <Text style={styles.errorText}>❌ Monto inválido</Text>
+                              <Text style={styles.errorTextF}>❌ Monto inválido</Text>
                             );
                           } else if (montoNum < pedido.total) {
                             return (
-                              <Text style={styles.errorText}>
+                              <Text style={styles.errorTextF}>
                                 ❌ Faltan ${(pedido.total - montoNum).toFixed(2)}
                               </Text>
                             );
@@ -1388,7 +1319,6 @@ export default function PedidoDetalle() {
                             placeholderTextColor="#94a3b8"
                             value={fechaTarjeta}
                             onChangeText={(text) => {
-                              // Formato automático MM/AA
                               let formatted = text.replace(/\D/g, '');
                               if (formatted.length > 2) {
                                 formatted = formatted.substring(0, 2) + '/' + formatted.substring(2, 4);
@@ -1420,7 +1350,6 @@ export default function PedidoDetalle() {
                 </AnimatedCard>
               )}
 
-              {/* Botón de finalizar */}
               <AnimatedCard delay={500}>
                 <TouchableOpacity
                   style={[styles.finalizarButton, finalizando && styles.finalizarButtonDisabled]}
@@ -1447,8 +1376,8 @@ export default function PedidoDetalle() {
         </View>
       )}
 
-      {/* 🔥 BOTÓN DE CANCELAR (SOLO SI ESTÁ PENDIENTE) */}
-      {!pedidoCompletado && pedido.estadoPedido === "PENDIENTE" && (
+      {/* 🔥 BOTÓN CANCELAR - SOLO SI ESTÁ PENDIENTE */}
+      {mostrarFormularioPago && (
         <AnimatedCard delay={600}>
           <TouchableOpacity
             style={styles.cancelarButton}
@@ -1461,7 +1390,6 @@ export default function PedidoDetalle() {
         </AnimatedCard>
       )}
 
-      {/* 🔥 FOOTER PREMIUM */}
       <View style={styles.footer}>
         <FloatingCircles />
         
@@ -1477,9 +1405,9 @@ export default function PedidoDetalle() {
           </View>
         </View>
         <Text style={styles.footerSubtitle}>
-          {pedidoCompletado 
-            ? `Tu pedido #${pedido.idPedido} está ${pedido.estadoPedido.toLowerCase()}`
-            : "Tus pagos están protegidos con encriptación de nivel bancario"
+          {mostrarFormularioPago
+            ? "Tus pagos están protegidos con encriptación de nivel bancario"
+            : `Tu pedido #${pedido.idPedido} está ${pedido.estadoPedido.toLowerCase()}`
           }
         </Text>
         
@@ -1504,14 +1432,12 @@ export default function PedidoDetalle() {
   );
 }
 
+// 🔥 ESTILOS (continuación en siguiente mensaje debido al límite de caracteres)
 const styles = StyleSheet.create({
-  // 🔥 CONTAINER PRINCIPAL
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
-  
-  // 🔥 LOADING SCREEN PREMIUM
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1539,8 +1465,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 1 }],
   },
-  
-  // 🔥 ERROR SCREEN PREMIUM
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1580,8 +1504,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
   },
-  
-  // 🔥 CÍRCULOS FLOTANTES PREMIUM
   floatingContainer: {
     position: 'absolute',
     top: 0,
@@ -1638,8 +1560,6 @@ const styles = StyleSheet.create({
     bottom: 150,
     right: '30%',
   },
-  
-  // 🔥 HEADER PREMIUM
   header: {
     backgroundColor: "white",
     paddingTop: 60,
@@ -1657,8 +1577,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  
-  // Botón de volver premium
   backButton: {
     position: 'absolute',
     top: 60,
@@ -1705,13 +1623,10 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     marginLeft: 8,
   },
-  
   headerContent: {
     alignItems: 'center',
     zIndex: 1,
   },
-  
-  // Avatar premium con efectos 3D
   avatarContainer: {
     alignItems: 'center',
     marginBottom: 24,
@@ -1766,8 +1681,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 3 },
     textShadowRadius: 6,
   },
-  
-  // Badge de estado premium
   estadoBadge: {
     position: 'absolute',
     bottom: -16,
@@ -1796,7 +1709,6 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     letterSpacing: 0.5,
   },
-  
   titleContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -1830,7 +1742,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  
   infoBadgesContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -1866,8 +1777,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "System",
   },
-  
-  // 🔥 SECCIONES PREMIUM
   section: {
     paddingHorizontal: 20,
     marginBottom: 28,
@@ -1899,8 +1808,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 8,
   },
-  
-  // 🔥 TARJETA PREMIUM
   premiumCard: {
     backgroundColor: "white",
     borderRadius: 25,
@@ -1935,8 +1842,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
   },
-  
-  // 🔥 PRODUCTOS
   emptyCard: {
     alignItems: "center",
     padding: 40,
@@ -1960,7 +1865,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-  
   productsCard: {
     padding: 20,
   },
@@ -2021,7 +1925,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "System",
   },
-  
   productInfo: {
     flex: 1,
     marginRight: 12,
@@ -2070,7 +1973,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "System",
   },
-  
   productPriceContainer: {
     alignItems: 'flex-end',
   },
@@ -2093,8 +1995,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     marginHorizontal: -10,
   },
-  
-  // 🔥 PAGO
   paymentCard: {
     padding: 24,
   },
@@ -2144,7 +2044,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "System",
   },
-  
   paymentDivider: {
     alignItems: 'center',
     marginVertical: 20,
@@ -2165,7 +2064,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FF6B35',
   },
-  
   paymentTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -2207,8 +2105,6 @@ const styles = StyleSheet.create({
     color: "#FF6B35",
     fontFamily: "System",
   },
-  
-  // 🔥 BOTONES PREMIUM
   primaryButton: {
     backgroundColor: "#FF6B35",
     paddingHorizontal: 28,
@@ -2251,8 +2147,6 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     textAlign: 'center',
   },
-  
-  // 🔥 MÉTODO DE PAGO PREMIUM
   paymentMethodCard: {
     padding: 24,
   },
@@ -2327,7 +2221,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  
   formContainer: {
     marginTop: 10,
   },
@@ -2421,37 +2314,39 @@ const styles = StyleSheet.create({
   columnInput: {
     flex: 1,
   },
-  changeContainer: {
+  cambioContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FFF4',
-    padding: 16,
-    borderRadius: 14,
-    marginTop: 10,
+    backgroundColor: '#FAFBF9',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: '#F0F4ED',
   },
-  changeIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DCFCE7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  changeIcon: {
-    fontSize: 18,
-    color: '#166534',
-  },
-  changeText: {
-    fontSize: 16,
+  cambioLabel: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#166534',
+    color: '#64748b',
+    marginBottom: 6,
+  },
+  cambioText: {
+    fontSize: 15,
+    color: '#2ECC71',
+    fontWeight: '600',
+  },
+  errorTextF: {
+    fontSize: 15,
+    color: '#E74C3C',
+    fontWeight: '600',
     fontFamily: 'System',
   },
-  
-  // 🔥 COMPROBANTE ESTILOS
+  ayudaText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
   comprobanteSeleccionado: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2535,7 +2430,6 @@ const styles = StyleSheet.create({
     color: "#64748b",
     marginTop: 6,
   },
-  
   sugerenciaButton: {
     backgroundColor: '#FFF2E8',
     paddingHorizontal: 16,
@@ -2550,40 +2444,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  
-  cambioContainer: {
-    backgroundColor: '#FAFBF9',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#F0F4ED',
-  },
-  cambioLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 6,
-  },
-  cambioText: {
-    fontSize: 15,
-    color: '#2ECC71',
-    fontWeight: '600',
-  },
-  errorTextF: {
-  fontSize: 15,
-  color: '#E74C3C',
-  fontWeight: '600', // Esto debería funcionar
-  fontFamily: 'System', // Añade esto para mejor compatibilidad
-},
-  ayudaText: {
-    fontSize: 12,
-    color: '#94a3b8',
-    fontStyle: 'italic',
-    marginTop: 8,
-  },
-  
-  // 🔥 BOTÓN FINALIZAR PREMIUM
   finalizarButton: {
     backgroundColor: '#FF6B35',
     borderRadius: 18,
@@ -2653,8 +2513,6 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
     zIndex: 0,
   },
-  
-  // 🔥 BOTÓN CANCELAR
   cancelarButton: {
     backgroundColor: 'white',
     borderRadius: 18,
@@ -2684,8 +2542,6 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
     fontFamily: 'System',
   },
-  
-  // 🔥 FOOTER PREMIUM
   footer: {
     backgroundColor: "white",
     borderRadius: 30,
@@ -2738,47 +2594,45 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    top: 10,
-    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    top: 8,
+    left: 8,
     transform: [{ rotate: '45deg' }],
   },
   footerIcon: {
     fontSize: 32,
     color: "white",
-    zIndex: 1,
+    fontWeight: 'bold',
   },
   footerTitle: {
-    fontSize: 16,
-    color: "#64748b",
-    fontWeight: "500",
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1e293b",
     fontFamily: "System",
-    marginBottom: 6,
-    zIndex: 1,
+    marginBottom: 4,
   },
   footerBrand: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
     color: "#FF6B35",
     fontFamily: "System",
-    letterSpacing: -0.5,
-    zIndex: 1,
+    letterSpacing: -0.3,
   },
   footerSubtitle: {
-    fontSize: 15,
-    color: "#94a3b8",
+    fontSize: 14,
+    color: "#64748b",
     textAlign: "center",
-    marginBottom: 24,
     fontFamily: "System",
-    lineHeight: 22,
+    lineHeight: 20,
+    marginBottom: 24,
+    maxWidth: 280,
     zIndex: 1,
   },
   footerDecoration: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 24,
-    zIndex: 1,
+    marginBottom: 20,
   },
   footerLine: {
     flex: 1,
@@ -2788,7 +2642,7 @@ const styles = StyleSheet.create({
   footerDots: {
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
   },
   footerDot: {
     width: 8,
@@ -2797,25 +2651,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B35',
   },
   versionContainer: {
-    alignItems: "center",
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-    width: '100%',
+    alignItems: 'center',
     zIndex: 1,
   },
   versionText: {
     fontSize: 13,
     color: "#94a3b8",
-    fontWeight: "600",
     fontFamily: "System",
-    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   versionSubtext: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#cbd5e1",
-    marginTop: 6,
     fontFamily: "System",
   },
 });

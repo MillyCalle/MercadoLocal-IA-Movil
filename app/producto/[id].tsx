@@ -298,155 +298,153 @@ export default function ProductoDetalle() {
   };
 
   const comprarAhora = async () => {
-    try {
-      console.log("🛒 [COMPRAR AHORA] Iniciando...");
-      
-      const esVendedor = await verificarSiEsVendedor();
-      if (esVendedor) {
-        Alert.alert(
-          "Acción no disponible",
-          "Esta función solo está disponible para consumidores",
-          [{ text: "Aceptar" }]
-        );
-        return;
-      }
-
-      if (!verificarStock(cantidad)) {
-        return;
-      }
-
-      const userStr = await AsyncStorage.getItem("user");
-      const token = await AsyncStorage.getItem("authToken");
-
-      if (!userStr || !token) {
-        Alert.alert(
-          "Inicia sesión",
-          "Debes iniciar sesión para comprar",
-          [
-            { text: "Cancelar", style: "cancel" },
-            { 
-              text: "Iniciar sesión", 
-              onPress: () => router.push("/(tabs)/profile") 
-            },
-          ]
-        );
-        return;
-      }
-
-      const user = JSON.parse(userStr);
-      const idConsumidor = user.idConsumidor || user.idUsuario;
-
-      const confirmacion = await new Promise((resolve) => {
-        Alert.alert(
-          "⚡ Comprar Ahora",
-          `¿Deseas comprar "${producto?.nombreProducto}"?\n\n` +
-          `Cantidad: ${cantidad}\n` +
-          `Precio unitario: $${producto?.precioProducto.toFixed(2)}\n` +
-          `Total: $${(producto!.precioProducto * cantidad).toFixed(2)}`,
-          [
-            { text: "Cancelar", onPress: () => resolve(false), style: "cancel" },
-            { text: "Continuar", onPress: () => resolve(true), style: "default" },
-          ]
-        );
-      });
-
-      if (!confirmacion) {
-        console.log("❌ Usuario canceló la compra");
-        return;
-      }
-
-      // ✅ CORRECCIÓN: Crear el pedido directamente con el producto
-      const body = {
-        idConsumidor: idConsumidor,
-        idVendedor: producto!.idVendedor || 1,
-        // NO enviar metodoPago aquí - se seleccionará en CheckoutUnificado
-        detalles: [
-          {
-            idProducto: producto!.idProducto,
-            cantidad: cantidad,
-            precioUnitario: producto!.precioProducto,
-            subtotal: producto!.precioProducto * cantidad
-          }
-        ]
-      };
-
-      console.log("📦 Enviando compra rápida:", body);
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Error en compra:", errorText);
-        
-        let errorMessage = "No se pudo crear el pedido";
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        
-        Alert.alert("❌ Error", errorMessage);
-        return;
-      }
-
-      const pedido = await response.json();
-      console.log("✅ Pedido creado:", pedido);
-      console.log("🆔 ID del pedido:", pedido.idPedido || pedido.id);
-      console.log("📊 Estado del pedido:", pedido.estadoPedido);
-
-      // ✅ CORRECCIÓN CRÍTICA: Redirigir a CheckoutUnificado
+  try {
+    console.log("🛒 [COMPRAR AHORA] Iniciando...");
+    
+    const esVendedor = await verificarSiEsVendedor();
+    if (esVendedor) {
       Alert.alert(
-        "✅ ¡Pedido creado!", 
-        `Tu pedido #${pedido.idPedido || pedido.id} ha sido creado exitosamente.\n\nSerás redirigido para completar el pago.`,
+        "Acción no disponible",
+        "Esta función solo está disponible para consumidores",
+        [{ text: "Aceptar" }]
+      );
+      return;
+    }
+
+    if (!verificarStock(cantidad)) {
+      return;
+    }
+
+    const userStr = await AsyncStorage.getItem("user");
+    const token = await AsyncStorage.getItem("authToken");
+
+    if (!userStr || !token) {
+      Alert.alert(
+        "Inicia sesión",
+        "Debes iniciar sesión para comprar",
         [
+          { text: "Cancelar", style: "cancel" },
           { 
-            text: "Ir al checkout", 
-            onPress: () => {
-              console.log("📍 Navegando a /consumidor/CheckoutUnificado con id:", pedido.idPedido || pedido.id);
-              router.push({
-                pathname: "/consumidor/CheckoutUnificado",
-                params: { 
-                  pedidoId: pedido.idPedido || pedido.id,
-                  origen: "COMPRA_RAPIDA",
-                  productoId: producto!.idProducto,
-                  cantidad: cantidad.toString()
-                }
+            text: "Iniciar sesión", 
+            onPress: () => router.push("/(tabs)/profile") 
+          },
+        ]
+      );
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    const idConsumidor = user.idConsumidor || user.idUsuario;
+
+    // ✅ CONFIRMACIÓN
+    Alert.alert(
+      "⚡ Comprar Ahora",
+      `¿Deseas comprar "${producto?.nombreProducto}"?\n\n` +
+      `Cantidad: ${cantidad}\n` +
+      `Precio unitario: $${producto?.precioProducto.toFixed(2)}\n` +
+      `Total: $${(producto!.precioProducto * cantidad).toFixed(2)}`,
+      [
+        { 
+          text: "Cancelar", 
+          style: "cancel" 
+        },
+        { 
+          text: "Continuar", 
+          onPress: async () => {
+            try {
+              console.log("📦 Creando pedido pendiente...");
+
+              // 🔥 PASO 1: CREAR PEDIDO EN ESTADO PENDIENTE
+              // Usamos el mismo body que en web
+              const body = {
+                idConsumidor: idConsumidor,
+                idVendedor: producto!.idVendedor || 1,
+                metodoPago: "PENDIENTE", // 🔥 IMPORTANTE: Estado pendiente
+                detalles: [
+                  {
+                    idProducto: producto!.idProducto,
+                    cantidad: cantidad
+                  }
+                ]
+              };
+
+              console.log("📤 Body:", body);
+
+              const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
               });
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Error:", errorText);
+                
+                let errorMessage = "No se pudo crear el pedido";
+                try {
+                  const errorData = JSON.parse(errorText);
+                  errorMessage = errorData.message || errorData.error || errorMessage;
+                } catch {
+                  errorMessage = errorText || errorMessage;
+                }
+                
+                Alert.alert("❌ Error", errorMessage);
+                return;
+              }
+
+              const pedido = await response.json();
+              console.log("✅ Pedido creado:", pedido);
+
+              const pedidoId = pedido.idPedido || pedido.id;
+              
+              if (!pedidoId) {
+                throw new Error("No se recibió el ID del pedido");
+              }
+
+              console.log(`🆔 ID del pedido: ${pedidoId}`);
+
+              // 🔥 PASO 2: Mostrar notificación de éxito
+              Alert.alert(
+                "✅ Pedido creado",
+                "Ahora completa tu pago",
+                [
+                  {
+                    text: "Continuar al pago",
+                    onPress: () => {
+                      console.log(`🚀 Navegando a PedidoDetalle con id=${pedidoId}`);
+                      
+                      // 🔥 PASO 3: NAVEGAR A PEDIDODETALLE CON EL ID
+                      router.push({
+                        pathname: "/consumidor/PedidoDetalle",
+                        params: { 
+                          id: pedidoId.toString()
+                        }
+                      });
+                    }
+                  }
+                ]
+              );
+
+            } catch (error: any) {
+              console.error("❌ Error completo:", error);
+              Alert.alert(
+                "❌ Error", 
+                error.message || "No se pudo procesar tu compra"
+              );
             }
           }
-        ]
-      );
-      
-      // Navegar automáticamente después de 1.5 segundos
-      setTimeout(() => {
-        console.log(`🚀 Navegando automáticamente a /consumidor/CheckoutUnificado con id: ${pedido.idPedido || pedido.id}`);
-        router.push({
-          pathname: "/consumidor/CheckoutUnificado",
-          params: { 
-            pedidoId: pedido.idPedido || pedido.id,
-            origen: "COMPRA_RAPIDA",
-            productoId: producto!.idProducto,
-            cantidad: cantidad.toString()
-          }
-        });
-      }, 1500);
+        },
+      ]
+    );
 
-    } catch (error: any) {
-      console.error("❌ Error en comprar ahora:", error);
-      Alert.alert("❌ Error", 
-        "Ocurrió un error inesperado al procesar tu compra\n\n" + 
-        (error.message || "Por favor, intenta nuevamente.")
-      );
-    }
-  };
+  } catch (error: any) {
+    console.error("❌ Error en comprar ahora:", error);
+    Alert.alert("❌ Error", error.message || "Ocurrió un error inesperado");
+  }
+};
 
   const enviarReseña = async () => {
     try {
