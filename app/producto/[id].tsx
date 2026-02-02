@@ -214,7 +214,7 @@ export default function ProductoDetalle() {
           "Debes iniciar sesión para guardar en favoritos",
           [
             { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+            { text: "Iniciar sesión", onPress: () => router.push("/login") }
           ]
         );
         setGuardandoFavorito(false);
@@ -228,7 +228,7 @@ export default function ProductoDetalle() {
           `"${producto.nombreProducto}" ya está en tus favoritos. Para eliminarlo, ve a la sección de Favoritos.`,
           [{ text: "Aceptar" }]
         );
-        router.push("/(tabs)/Favoritos" as any);
+        router.push("/(tabs)/Favoritos");
         setGuardandoFavorito(false);
         return;
       }
@@ -240,7 +240,7 @@ export default function ProductoDetalle() {
         
         // 4. NAVEGAR A FAVORITOS DESPUÉS DE AGREGAR
         setTimeout(() => {
-          router.push("/(tabs)/Favoritos" as any);
+          router.push("/(tabs)/Favoritos");
         }, 500);
         
       } catch (error: any) {
@@ -281,7 +281,7 @@ export default function ProductoDetalle() {
           "Debes iniciar sesión para agregar al carrito",
           [
             { text: "Cancelar" },
-            { text: "Iniciar sesión", onPress: () => router.push("/login" as any) },
+            { text: "Iniciar sesión", onPress: () => router.push("/login") }
           ]
         );
         return;
@@ -299,6 +299,8 @@ export default function ProductoDetalle() {
 
   const comprarAhora = async () => {
     try {
+      console.log("🛒 [COMPRAR AHORA] Iniciando...");
+      
       const esVendedor = await verificarSiEsVendedor();
       if (esVendedor) {
         Alert.alert(
@@ -324,7 +326,7 @@ export default function ProductoDetalle() {
             { text: "Cancelar", style: "cancel" },
             { 
               text: "Iniciar sesión", 
-              onPress: () => router.push("/(tabs)/profile" as any) 
+              onPress: () => router.push("/(tabs)/profile") 
             },
           ]
         );
@@ -349,20 +351,26 @@ export default function ProductoDetalle() {
       });
 
       if (!confirmacion) {
+        console.log("❌ Usuario canceló la compra");
         return;
       }
 
+      // ✅ CORRECCIÓN: Crear el pedido directamente con el producto
       const body = {
         idConsumidor: idConsumidor,
         idVendedor: producto!.idVendedor || 1,
-        metodoPago: "TARJETA",
+        // NO enviar metodoPago aquí - se seleccionará en CheckoutUnificado
         detalles: [
           {
             idProducto: producto!.idProducto,
-            cantidad: cantidad
+            cantidad: cantidad,
+            precioUnitario: producto!.precioProducto,
+            subtotal: producto!.precioProducto * cantidad
           }
         ]
       };
+
+      console.log("📦 Enviando compra rápida:", body);
 
       const response = await fetch(`${API_CONFIG.BASE_URL}/pedidos/comprar-ahora`, {
         method: "POST",
@@ -375,27 +383,67 @@ export default function ProductoDetalle() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error en compra:", errorText);
-        Alert.alert("Error", "No se pudo crear el pedido. Intenta nuevamente.");
+        console.error("❌ Error en compra:", errorText);
+        
+        let errorMessage = "No se pudo crear el pedido";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        Alert.alert("❌ Error", errorMessage);
         return;
       }
 
       const pedido = await response.json();
+      console.log("✅ Pedido creado:", pedido);
+      console.log("🆔 ID del pedido:", pedido.idPedido || pedido.id);
+      console.log("📊 Estado del pedido:", pedido.estadoPedido);
 
-      Alert.alert("¡Pedido creado!", "Ahora serás redirigido para completar el pago");
+      // ✅ CORRECCIÓN CRÍTICA: Redirigir a CheckoutUnificado
+      Alert.alert(
+        "✅ ¡Pedido creado!", 
+        `Tu pedido #${pedido.idPedido || pedido.id} ha sido creado exitosamente.\n\nSerás redirigido para completar el pago.`,
+        [
+          { 
+            text: "Ir al checkout", 
+            onPress: () => {
+              console.log("📍 Navegando a /consumidor/CheckoutUnificado con id:", pedido.idPedido || pedido.id);
+              router.push({
+                pathname: "/consumidor/CheckoutUnificado",
+                params: { 
+                  pedidoId: pedido.idPedido || pedido.id,
+                  origen: "COMPRA_RAPIDA",
+                  productoId: producto!.idProducto,
+                  cantidad: cantidad.toString()
+                }
+              });
+            }
+          }
+        ]
+      );
       
+      // Navegar automáticamente después de 1.5 segundos
       setTimeout(() => {
+        console.log(`🚀 Navegando automáticamente a /consumidor/CheckoutUnificado con id: ${pedido.idPedido || pedido.id}`);
         router.push({
-          pathname: `/pedido/${pedido.idPedido}` as any,
-          params: { origen: "CHECKOUT" }
+          pathname: "/consumidor/CheckoutUnificado",
+          params: { 
+            pedidoId: pedido.idPedido || pedido.id,
+            origen: "COMPRA_RAPIDA",
+            productoId: producto!.idProducto,
+            cantidad: cantidad.toString()
+          }
         });
       }, 1500);
 
     } catch (error: any) {
       console.error("❌ Error en comprar ahora:", error);
-      Alert.alert("Error", 
-        "Ocurrió un error inesperado al procesar tu compra\n" + 
-        (error.message || "")
+      Alert.alert("❌ Error", 
+        "Ocurrió un error inesperado al procesar tu compra\n\n" + 
+        (error.message || "Por favor, intenta nuevamente.")
       );
     }
   };
@@ -487,7 +535,7 @@ export default function ProductoDetalle() {
 
   const verPerfilVendedor = () => {
     if (producto && producto.idVendedor) {
-       router.push(`/(tabs)/VendedorPerfil?id=${producto.idVendedor}` as any);
+       router.push(`/(tabs)/VendedorPerfil?id=${producto.idVendedor}`);
     } else {
       Alert.alert("Error", "No se encontró información del vendedor");
     }
@@ -1603,7 +1651,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   
-  // Modales - CORREGIDOS
+  // Modales
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
